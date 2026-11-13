@@ -44,7 +44,7 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         raw = self.rfile.read(int(self.headers.get("content-length", 0)))
         body = json.loads(raw or b"{}")
-        with open(LOG, "a") as f:
+        with open(LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps({"path": self.path, "auth": bool(self.headers.get("authorization")), "body": body}, ensure_ascii=False) + "\n")
         text, tool = decide(body)
         cid, now, model = "chatcmpl-mock", int(time.time()), body.get("model", "k-exaone_v2.5")

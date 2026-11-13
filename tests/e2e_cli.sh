@@ -20,6 +20,7 @@ fi
 # 키 저장소 대신 환경 변수를 쓰고, 데이터 폴더도 임시 폴더로 분리한다.
 export EXAONE_STUDIO_HOME="$WORK_NATIVE"
 export EXAONE_API_KEY=mock-key
+export PYTHONUTF8=1
 export LITELLM_MASTER_KEY=sk-e2e-test
 UP_PORT=4999
 export GATEWAY_PORT=4010
