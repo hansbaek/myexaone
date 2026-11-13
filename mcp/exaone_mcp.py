@@ -5,6 +5,7 @@
 """
 import asyncio
 import os
+import random
 from typing import Literal
 
 import httpx
@@ -35,14 +36,14 @@ async def exaone_chat(
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
     body = {"model": MODEL, "messages": messages, "max_tokens": max_tokens,
             "temperature": 1.0, "top_p": 0.95, "reasoning_effort": reasoning_effort}
-    # 서버 혼잡 429가 자주 오므로 기다렸다 최대 6번 다시 시도한다.
+    # 서버 혼잡 429는 무작위로 오므로 길게 기다리기보다 짧게 자주 다시 시도한다 (최대 약 1분).
     async with httpx.AsyncClient(timeout=600) as client:
-        for attempt in range(7):
+        for attempt in range(15):
             r = await client.post(f"{BASE}/chat/completions", json=body,
                                   headers={"Authorization": f"Bearer {KEY}"})
-            if r.status_code != 429 or attempt == 6:
+            if r.status_code != 429 or attempt == 14:
                 break
-            await asyncio.sleep(min(2 * 2 ** attempt, 30))
+            await asyncio.sleep(2 + random.random() * 3)
     if r.status_code == 429:
         return "오류: EXAONE 호출 한도 초과 또는 서버 혼잡(429). 잠시 뒤 다시 시도하세요."
     if r.status_code != 200:

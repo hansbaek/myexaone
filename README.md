@@ -87,6 +87,7 @@ Antigravity의 MCP 서버 설정(원본 JSON 편집)에 아래를 추가합니�
 
 ## 한계
 
+- Claude Code는 셸 환경 변수보다 `~/.claude/settings.json`의 `env` 값을 우선합니다. 그래서 `bin/exaone-claude`는 연결 설정을 `--settings`로 넘깁니다. 그 파일에 다른 도구가 넣은 `ANTHROPIC_BASE_URL`이 있어도 이 래퍼는 게이트웨이로 연결되지만, 평소의 `claude` 명령은 그 주소로 연결됩니다.
 - Claude Code 시작 시 `[claude-code:unrecognized_model]` 한 줄이 출력됩니다. 모르는 모델 이름이라 나오는 안내이며 동작에는 영향이 없습니다.
 - 간단한 작업(파일 하나 작성 후 실행)에 Claude Code 약 40초, Codex 약 66초가 걸렸습니다.
 - K-EXAONE 2.5는 텍스트 전용이라 이미지 첨부와 스크린샷 기능은 동작하지 않습니다.
