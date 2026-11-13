@@ -1,11 +1,19 @@
 // 한글 등 조합형 입력(IME) 처리.
 //
-// xterm.js 는 조합이 끝나면 숨은 textarea 값의 위치를 계산해 글자를 꺼내는데, macOS WebKit(Tauri가
-// 쓰는 WKWebView)은 한글 조합 이벤트 순서와 textarea 갱신 시점이 Chromium과 달라서 글자가 빠진다
-// (특히 받침이 다음 글자로 넘어가는 모음 입력). 그래서 WebKit 에서는 조합 이벤트를 xterm 보다 먼저
-// 가로채서, 확정된 글자(compositionend 의 data)를 직접 보낸다.
+// macOS WKWebView(Tauri)에서 확인한 한글 입력 방식 (tests/ime-webkit-korean.log):
+//   - composition 이벤트가 오지 않는다.
+//   - 새 글자의 첫 자모는 input(insertText "ㅎ") 으로 들어오고,
+//     조합이 진행되면 input(insertReplacementText "하" → "한") 으로 직전 글자를 바꿔치기한다.
+//   - 받침이 다음 글자로 넘어가면 insertReplacementText "하" 다음에 insertText "나" 가 온다.
+//   - 글자 키의 keydown 은 input 보다 늦게, keyCode 229 로 온다.
+//   - 띄어쓰기·Enter 등은 keydown(일반 keyCode) 이 먼저 오고 input 이 뒤따른다.
+// xterm.js 는 insertText 의 첫 자모만 보내고 바꿔치기는 무시해서 "ㅎㄱㅇ" 처럼 자모만 남는다.
 //
-// Windows(WebView2 = Chromium)는 xterm.js 의 기본 처리를 그대로 쓴다.
+// 그래서 조합 중인 글자 하나(pending)를 앱이 들고 있다가 바꿔치기를 반영하고,
+// 다음 글자가 시작되거나 다른 키가 눌리면 확정해서 보낸다.
+// composition 이벤트를 쓰는 환경(다른 입력기)도 같은 방식으로 처리한다.
+//
+// Windows(WebView2 = Chromium)는 xterm.js 기본 처리를 쓴다.
 import type { Terminal } from "@xterm/xterm";
 
 const ua = navigator.userAgent;
@@ -13,63 +21,106 @@ const IS_WEBKIT = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua);
 const MODE_KEY = "exaone.imeMode"; // "auto" | "custom" | "xterm"
 const DEBUG_KEY = "exaone.imeDebug";
 
-export function imeMode(): "auto" | "custom" | "xterm" {
+export type ImeMode = "auto" | "custom" | "xterm";
+
+function read(key: string): string | null {
   try {
-    const v = localStorage.getItem(MODE_KEY);
-    return v === "custom" || v === "xterm" ? v : "auto";
+    return localStorage.getItem(key);
   } catch {
-    return "auto";
+    return null;
   }
 }
 
-export function setImeMode(v: "auto" | "custom" | "xterm") {
+function write(key: string, value: string) {
   try {
-    localStorage.setItem(MODE_KEY, v);
+    localStorage.setItem(key, value);
   } catch {
-    /* 무시 */
+    /* 저장 못 해도 동작에는 지장 없음 */
   }
 }
 
-export function imeDebug(): boolean {
-  try {
-    return localStorage.getItem(DEBUG_KEY) === "1";
-  } catch {
-    return false;
-  }
+export function imeMode(): ImeMode {
+  const v = read(MODE_KEY);
+  return v === "custom" || v === "xterm" ? v : "auto";
 }
 
-export function setImeDebug(on: boolean) {
-  try {
-    localStorage.setItem(DEBUG_KEY, on ? "1" : "0");
-  } catch {
-    /* 무시 */
-  }
-}
-
+export const setImeMode = (v: ImeMode) => write(MODE_KEY, v);
+export const imeDebug = () => read(DEBUG_KEY) === "1";
+export const setImeDebug = (on: boolean) => write(DEBUG_KEY, on ? "1" : "0");
 export const usesCustomIme = () => imeMode() === "custom" || (imeMode() === "auto" && IS_WEBKIT);
+
+/** 한글 자모·음절인지 (조합 중일 수 있는 글자) */
+export function isHangul(s: string): boolean {
+  return /^[ᄀ-ᇿ㄰-㆏가-힣]+$/.test(s);
+}
 
 type Log = (line: string) => void;
 
-/** Enter 등 조합을 끝내는 특수 키가 keyCode 229 로만 올 때 보낼 값 */
-const KEY_TO_DATA: Record<string, string> = {
-  Enter: "\r",
-  Backspace: "\x7f",
-  Tab: "\t",
-  Escape: "\x1b",
-};
+/** 조합 상태. DOM 과 분리해 두어 시험하기 쉽게 했다. */
+export class HangulBuffer {
+  pending = "";
+  constructor(
+    private readonly send: (data: string) => void,
+    private readonly onPreview: (text: string) => void,
+  ) {}
+
+  private set(text: string) {
+    this.pending = text;
+    this.onPreview(text);
+  }
+
+  /** 조합 중인 글자를 확정해서 보낸다. */
+  flush() {
+    if (this.pending) {
+      const p = this.pending;
+      this.set("");
+      this.send(p);
+    }
+  }
+
+  /** input(insertText): 새 글자 시작. 한글이 아니면 바로 보낸다. */
+  insertText(data: string) {
+    this.flush();
+    if (isHangul(data)) this.set(data);
+    else this.send(data);
+  }
+
+  /** input(insertReplacementText): 조합 중인 글자를 바꾼다. */
+  replace(data: string) {
+    if (isHangul(data)) this.set(data);
+    else this.insertText(data);
+  }
+
+  /** composition 이벤트 방식 */
+  compositionUpdate(data: string) {
+    this.set(data);
+  }
+
+  compositionEnd(data: string) {
+    this.set("");
+    if (data) this.send(data);
+  }
+
+  /** Backspace: 조합 중인 글자가 있으면 그것만 지운다 (아직 보내지 않았으므로). */
+  backspace(): boolean {
+    if (!this.pending) return false;
+    this.set("");
+    return true;
+  }
+}
 
 /**
  * 터미널에 조합 입력 처리를 붙인다. 반환값은 해제 함수.
- * @param send 확정된 글자를 세션으로 보내는 함수
+ * @param rawSend 세션으로 보내는 함수
  * @param log 진단 기록 (꺼져 있으면 undefined)
  */
 export function installIme(term: Terminal, rawSend: (data: string) => void, log?: Log): () => void {
+  const root = term.element;
+  if (!root) return () => {};
   const send = (data: string) => {
     log?.(`→ send ${JSON.stringify(data)}`);
     rawSend(data);
   };
-  const root = term.element;
-  if (!root) return () => {};
   const custom = usesCustomIme();
   log?.(`ime mode=${imeMode()} custom=${custom} webkit=${IS_WEBKIT} ua=${ua}`);
 
@@ -79,7 +130,6 @@ export function installIme(term: Terminal, rawSend: (data: string) => void, log?
     listeners.push([type, fn]);
   };
 
-  // 진단 기록은 처리 방식과 상관없이 모든 관련 이벤트를 남긴다.
   if (log) {
     for (const type of ["keydown", "keyup", "compositionstart", "compositionupdate", "compositionend", "beforeinput", "input"]) {
       on(type, (e) => {
@@ -105,15 +155,9 @@ export function installIme(term: Terminal, rawSend: (data: string) => void, log?
     return () => listeners.forEach(([t, fn]) => root.removeEventListener(t, fn, true));
   }
 
-  let composing = false;
-  let lastUpdate = "";
-  let endedAt = 0; // 마지막 compositionend 시각
-  let sentKeyAt = 0; // keyCode 229 로 온 특수 키를 직접 보낸 시각
-  let blockedKeydown = false; // 직전 keydown 을 xterm 이 처리하지 않게 막았는지
-
   const preview = document.createElement("div");
   preview.className = "ime-preview";
-  term.element?.querySelector(".xterm-screen")?.appendChild(preview);
+  root.querySelector(".xterm-screen")?.appendChild(preview);
 
   const placePreview = () => {
     const screen = root.querySelector(".xterm-screen") as HTMLElement | null;
@@ -125,13 +169,17 @@ export function installIme(term: Terminal, rawSend: (data: string) => void, log?
     preview.style.top = `${buf.cursorY * ch}px`;
     preview.style.height = `${ch}px`;
     preview.style.lineHeight = `${ch}px`;
-    // IME 후보 창이 커서 옆에 뜨도록 textarea 도 같은 위치로 옮긴다.
-    const ta = term.textarea;
-    if (ta) {
-      ta.style.left = preview.style.left;
-      ta.style.top = preview.style.top;
-    }
   };
+
+  const buf = new HangulBuffer(send, (text) => {
+    preview.textContent = text;
+    preview.classList.toggle("on", text.length > 0);
+    if (text) placePreview();
+  });
+
+  // 마지막으로 xterm 에 넘긴 keydown 의 시각. 그 직후의 insertText 는 xterm 이 keypress 로 이미 보냈다.
+  let xtermKeyAt = -1;
+  let composing = false;
 
   const stop = (e: Event) => {
     e.stopImmediatePropagation();
@@ -141,70 +189,58 @@ export function installIme(term: Terminal, rawSend: (data: string) => void, log?
   on("compositionstart", (e) => {
     stop(e);
     composing = true;
-    lastUpdate = "";
-    placePreview();
+    buf.flush();
   });
-
   on("compositionupdate", (e) => {
     stop(e);
-    lastUpdate = (e as CompositionEvent).data ?? "";
-    preview.textContent = lastUpdate;
-    preview.classList.toggle("on", lastUpdate.length > 0);
-    placePreview();
+    buf.compositionUpdate((e as CompositionEvent).data ?? "");
   });
-
   on("compositionend", (e) => {
     stop(e);
     composing = false;
-    const data = (e as CompositionEvent).data || lastUpdate;
-    lastUpdate = "";
-    preview.textContent = "";
-    preview.classList.remove("on");
-    endedAt = performance.now();
-    if (data) send(data);
+    buf.compositionEnd((e as CompositionEvent).data ?? buf.pending);
   });
 
-  // 조합 중 textarea 에 들어가는 글자는 xterm 이 보내지 않게 막는다.
-  // 조합 없이 바로 들어온 글자(한글 입력기 상태의 숫자·기호 등)는 xterm 이 무시하므로 직접 보낸다.
   on("input", (e) => {
     const ie = e as InputEvent;
-    if (ie.inputType === "insertCompositionText" || ie.inputType === "deleteCompositionText" || ie.inputType === "insertFromComposition") {
-      stop(e);
-      return;
-    }
-    if (ie.inputType === "insertText" && ie.data && blockedKeydown && !composing) {
-      stop(e);
-      blockedKeydown = false;
-      send(ie.data);
+    const data = ie.data ?? "";
+    switch (ie.inputType) {
+      case "insertCompositionText":
+      case "deleteCompositionText":
+      case "insertFromComposition":
+        stop(e);
+        return;
+      case "insertReplacementText":
+        stop(e);
+        if (data) buf.replace(data);
+        return;
+      case "insertText":
+        stop(e);
+        if (!data) return;
+        // 띄어쓰기 등은 keydown 이 먼저 와서 xterm 이 이미 보냈다.
+        if (!isHangul(data) && performance.now() - xtermKeyAt < 50) return;
+        buf.insertText(data);
+        return;
     }
   });
 
   term.attachCustomKeyEventHandler((ev) => {
     if (ev.type !== "keydown") return !(composing || ev.isComposing || ev.keyCode === 229);
-    blockedKeydown = false;
-    if (composing || ev.isComposing) {
-      blockedKeydown = true;
-      return false;
-    }
-    if (ev.keyCode === 229) {
-      // 조합을 끝낸 직후 Enter 등이 229 로만 오면, 그 키를 직접 보낸다.
-      const data = KEY_TO_DATA[ev.key];
-      if (data && performance.now() - endedAt < 100) {
-        sentKeyAt = performance.now();
-        send(data);
-      }
-      blockedKeydown = true;
-      return false;
-    }
-    // 같은 키가 229 와 일반 keyCode 로 두 번 오면 한 번만 보낸다.
-    if (KEY_TO_DATA[ev.key] && performance.now() - sentKeyAt < 100) {
-      return false;
-    }
+    if (composing || ev.isComposing || ev.keyCode === 229) return false;
+    if (ev.key === "Backspace" && buf.backspace()) return false;
+    // 다른 키(띄어쓰기, Enter, 방향키, Ctrl+C 등)를 누르면 조합 중인 글자를 먼저 확정한다.
+    buf.flush();
+    xtermKeyAt = performance.now();
     return true;
   });
 
+  // 포커스를 잃으면 조합 중인 글자를 확정한다.
+  const blur = () => buf.flush();
+  term.textarea?.addEventListener("blur", blur);
+
   return () => {
     listeners.forEach(([t, fn]) => root.removeEventListener(t, fn, true));
+    term.textarea?.removeEventListener("blur", blur);
     preview.remove();
   };
 }

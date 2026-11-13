@@ -220,8 +220,12 @@ function TermView({ tab, visible, onExit }: { tab: Tab; visible: boolean; onExit
       });
 
     const send = (d: string) => idRef.current !== null && sessions.write(idRef.current, d);
-    const removeIme = installIme(term, send, imeDebug() ? (line) => sessions.imeLog(line) : undefined);
-    const input = term.onData(send);
+    const log = imeDebug() ? (line: string) => sessions.imeLog(line) : undefined;
+    const removeIme = installIme(term, send, log);
+    const input = term.onData((d) => {
+      log?.(`→ xterm ${JSON.stringify(d)}`);
+      send(d);
+    });
     const resize = term.onResize(({ cols, rows }) => idRef.current !== null && sessions.resize(idRef.current, cols, rows));
     const ro = new ResizeObserver(() => {
       if (host.current && host.current.offsetWidth > 0) fit.fit();
