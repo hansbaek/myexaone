@@ -133,6 +133,37 @@ fn close_session(sessions: State<'_, Arc<Sessions>>, id: u32) {
     sessions.remove(id);
 }
 
+fn ime_log_file() -> Result<std::path::PathBuf, String> {
+    exaone_core::paths::logs_dir()
+        .map(|d| d.join("ime-debug.log"))
+        .map_err(|e| e.to_string())
+}
+
+/// 한글 입력 진단 기록 (설정에서 켰을 때만 화면이 보낸다).
+#[tauri::command(async)]
+fn ime_log(line: String) -> Result<(), String> {
+    use std::io::Write;
+    let path = ime_log_file()?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() % 100_000)
+        .unwrap_or(0);
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| e.to_string())?;
+    writeln!(f, "{ms:>5} {line}").map_err(|e| e.to_string())
+}
+
+#[tauri::command(async)]
+fn ime_log_path() -> Result<String, String> {
+    ime_log_file().map(|p| p.display().to_string())
+}
+
 #[tauri::command(async)]
 fn home_dir() -> Option<String> {
     std::env::home_dir().map(|p| p.display().to_string())
@@ -197,7 +228,9 @@ pub fn run() {
             write_session,
             resize_session,
             close_session,
-            home_dir
+            home_dir,
+            ime_log,
+            ime_log_path
         ])
         .setup(|app| {
             build_tray(app.handle())?;

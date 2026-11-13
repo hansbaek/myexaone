@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, Check, LogLine, Phase, Status } from "./api";
 import Sessions from "./Sessions";
+import { imeDebug, imeMode, setImeDebug, setImeMode } from "./ime";
+import { sessions } from "./sessionsApi";
 import "./App.css";
 
 type Tab = "home" | "sessions" | "logs" | "settings";
@@ -238,11 +240,62 @@ function Settings({ status, refresh }: { status: Status; refresh: () => Promise<
         <p className="hint">키를 바꾼 뒤에는 게이트웨이를 껐다 켜야 새 키가 적용됩니다.</p>
       </section>
 
+      <ImeSettings />
+
       <h2>정보</h2>
       <section className="card">
         <div className="kv"><span>게이트웨이 주소</span><code>{status.url}</code></div>
         <div className="kv"><span>실행 환경</span><span>{status.runtimeInstalled ? "설치됨" : "아직 설치되지 않음"}</span></div>
         <div className="kv"><span>버전</span><span>{status.version}</span></div>
+      </section>
+    </>
+  );
+}
+
+function ImeSettings() {
+  const [mode, setMode] = useState(imeMode());
+  const [debug, setDebug] = useState(imeDebug());
+  const [path, setPath] = useState("");
+  useEffect(() => {
+    sessions.imeLogPath().then(setPath);
+  }, []);
+  return (
+    <>
+      <h2>한글 입력</h2>
+      <section className="card">
+        <p className="sub">터미널에서 한글이 잘 입력되지 않으면 처리 방식을 바꿔 보세요. 바꾼 뒤 새로 연 세션부터 적용됩니다.</p>
+        <div className="seg">
+          {(
+            [
+              ["auto", "자동 (맥: 앱 처리)"],
+              ["custom", "앱 처리"],
+              ["xterm", "xterm 기본"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              className={mode === v ? "on" : ""}
+              onClick={() => {
+                setImeMode(v);
+                setMode(v);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={debug}
+            onChange={(e) => {
+              setImeDebug(e.target.checked);
+              setDebug(e.target.checked);
+            }}
+          />
+          입력 진단 기록 (키·조합 이벤트를 파일에 남깁니다. 문제를 알릴 때만 켜세요)
+        </label>
+        {debug && <p className="hint">기록 위치: <code>{path}</code></p>}
       </section>
     </>
   );

@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { attach, sessions, ToolName } from "./sessionsApi";
+import { imeDebug, installIme } from "./ime";
 
 interface Tab {
   key: number;
@@ -218,7 +219,9 @@ function TermView({ tab, visible, onExit }: { tab: Tab; visible: boolean; onExit
         onExitRef.current(1);
       });
 
-    const input = term.onData((d) => idRef.current !== null && sessions.write(idRef.current, d));
+    const send = (d: string) => idRef.current !== null && sessions.write(idRef.current, d);
+    const removeIme = installIme(term, send, imeDebug() ? (line) => sessions.imeLog(line) : undefined);
+    const input = term.onData(send);
     const resize = term.onResize(({ cols, rows }) => idRef.current !== null && sessions.resize(idRef.current, cols, rows));
     const ro = new ResizeObserver(() => {
       if (host.current && host.current.offsetWidth > 0) fit.fit();
@@ -228,6 +231,7 @@ function TermView({ tab, visible, onExit }: { tab: Tab; visible: boolean; onExit
     return () => {
       disposed = true;
       ro.disconnect();
+      removeIme();
       input.dispose();
       resize.dispose();
       detach();

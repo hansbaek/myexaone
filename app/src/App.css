@@ -183,3 +183,12 @@ button.tab.new.on { background: var(--bg); border-color: var(--line); }
 button.link { border: 0; background: transparent; padding: 3px 0; color: var(--muted); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 button.link:hover { color: var(--text); text-decoration: underline; background: transparent !important; }
 .actions { margin-top: 20px; }
+
+.ime-preview {
+  position: absolute; z-index: 10; display: none; padding: 0 1px;
+  background: var(--term-bg); color: var(--term-fg); border-bottom: 2px solid var(--accent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; white-space: pre; pointer-events: none;
+}
+.ime-preview.on { display: block; }
+.check-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--muted); cursor: pointer; }
+.check-row input { flex: none; }

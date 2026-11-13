@@ -67,6 +67,8 @@ export const sessions = {
   resize: (id: number, cols: number, rows: number) =>
     inTauri ? invoke<void>("resize_session", { id, cols, rows }) : Promise.resolve(),
   close: (id: number) => (inTauri ? invoke<void>("close_session", { id }) : Promise.resolve()),
+  imeLog: (line: string) => (inTauri ? invoke<void>("ime_log", { line }) : (console.debug("[ime]", line), Promise.resolve())),
+  imeLogPath: () => (inTauri ? invoke<string>("ime_log_path") : Promise.resolve("(미리보기)")),
   homeDir: () => (inTauri ? invoke<string | null>("home_dir") : Promise.resolve("/Users/me")),
   pickFolder: async (): Promise<string | null> => {
     if (!inTauri) return "/Users/me/projects/demo";
