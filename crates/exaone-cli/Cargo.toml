@@ -13,6 +13,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
-ctrlc.workspace = true
 exaone-core = { path = "../exaone-core" }
 rpassword.workspace = true
+
+[target.'cfg(not(unix))'.dependencies]
+ctrlc.workspace = true

@@ -11,7 +11,24 @@ Codex CLI ──── /v1/responses ─┼─ 게이트웨이(127.0.0.1:4000) �
 Antigravity ── MCP(exaone_chat) ─────────────────────────────────────────────────────── api.exaone.ai
 ```
 
-## 설치 (macOS·Windows)
+## 데스크톱 앱 (EXAONE Studio)
+
+게이트웨이를 켜고 끄는 일을 앱이 대신합니다. 트레이(메뉴 막대)에 상주하며, 창을 닫아도 게이트웨이는 계속 돕니다.
+
+- 앱을 켜면 게이트웨이가 자동으로 켜지고, 앱을 종료하면 함께 꺼집니다.
+- API 키는 설정 화면에서 입력합니다(OS 키 저장소에 저장).
+- uv가 앱에 들어 있어, 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 설치합니다.
+- 로그와 진단을 화면에서 볼 수 있습니다.
+
+빌드는 `app/`에서 합니다. 결과물은 `app/src-tauri/target/release/bundle/`에 생깁니다.
+
+```bash
+cd app && npm install && npm run tauri build
+```
+
+Claude Code·Codex 세션은 아직 터미널에서 `exaone claude`, `exaone codex`로 실행합니다(앱 안 터미널은 다음 단계).
+
+## 명령줄 도구 설치 (macOS·Windows)
 
 `exaone` 명령 하나로 게이트웨이와 Claude Code·Codex를 다룹니다. 빌드하려면 Rust와 [uv](https://docs.astral.sh/uv/)가 필요합니다.
 

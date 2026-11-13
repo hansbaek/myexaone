@@ -2,8 +2,7 @@
 //! macOS·Windows 공용 (기존 bin/*.sh 를 대신한다).
 
 use std::io::{BufRead, IsTerminal};
-use std::process::{Command, ExitCode, Stdio};
-use std::time::Duration;
+use std::process::{Command, ExitCode};
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
@@ -155,6 +154,7 @@ fn set_key(from_stdin: bool) -> Result<()> {
 }
 
 /// 자식 프로세스가 도는 동안 Ctrl+C는 자식이 처리하게 하고, 이 프로세스는 무시한다.
+#[cfg(not(unix))]
 fn ignore_ctrl_c() {
     let _ = ctrlc::set_handler(|| {});
 }
@@ -184,20 +184,39 @@ fn run_gateway(port: Option<u16>) -> Result<ExitCode> {
         secrets::master_key()?,
     );
 
-    ignore_ctrl_c();
-    let mut child = gateway::spawn(&rt, &cfg, Stdio::inherit(), Stdio::inherit())?;
-    match gateway::wait_healthy(port, &mut child, Duration::from_secs(180)) {
-        Ok(()) => eprintln!(
-            "\n게이트웨이 준비 완료: {} (Ctrl+C로 종료)\n",
+    // Unix: 이 프로세스를 게이트웨이로 대체한다. 그래야 exaone 을 끄면(kill) 게이트웨이도 같이 꺼진다.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        eprintln!(
+            "게이트웨이 시작: {} (Ctrl+C로 종료)",
             settings.gateway_url()
-        ),
-        Err(e) => {
-            let _ = child.kill();
-            return Err(e);
-        }
+        );
+        let err = gateway::command(&rt, &cfg).exec();
+        Err(err).context("게이트웨이를 실행하지 못했습니다")
     }
-    let status = child.wait()?;
-    Ok(exit_code(status.code()))
+    #[cfg(not(unix))]
+    {
+        ignore_ctrl_c();
+        let mut child = gateway::spawn(
+            &rt,
+            &cfg,
+            std::process::Stdio::inherit(),
+            std::process::Stdio::inherit(),
+        )?;
+        match gateway::wait_healthy(port, &mut child, std::time::Duration::from_secs(180)) {
+            Ok(()) => eprintln!(
+                "\n게이트웨이 준비 완료: {} (Ctrl+C로 종료)\n",
+                settings.gateway_url()
+            ),
+            Err(e) => {
+                let _ = child.kill();
+                return Err(e);
+            }
+        }
+        let status = child.wait()?;
+        Ok(exit_code(status.code()))
+    }
 }
 
 #[derive(Clone, Copy)]

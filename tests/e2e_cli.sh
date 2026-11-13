@@ -27,7 +27,15 @@ export GATEWAY_PORT=4010
 export EXAONE_API_BASE="http://127.0.0.1:$UP_PORT/v1"
 
 PIDS=()
-cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }
+cleanup() {
+  for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done
+  # Windows에서는 exaone.exe 를 꺼도 자식 게이트웨이가 남으므로 포트로 찾아 끈다.
+  if command -v taskkill >/dev/null; then
+    for pid in $(netstat -ano 2>/dev/null | grep ":$GATEWAY_PORT .*LISTENING" | awk '{print $NF}' | sort -u); do
+      taskkill //PID "$pid" //T //F >/dev/null 2>&1
+    done
+  fi
+}
 trap cleanup EXIT
 
 FAILED=0

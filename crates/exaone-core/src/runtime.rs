@@ -111,6 +111,7 @@ pub fn ensure(log: &mut dyn FnMut(&str)) -> Result<Runtime> {
 }
 
 fn run(cmd: &mut Command) -> Result<()> {
+    crate::process::background(cmd);
     let out = cmd
         .output()
         .with_context(|| format!("실행 실패: {cmd:?}"))?;

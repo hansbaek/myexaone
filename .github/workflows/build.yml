@@ -92,6 +92,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: app/src-tauri
+      # 앱에 넣을 uv (npm run bundle-uv 가 복사한다)
+      - uses: astral-sh/setup-uv@v6
       - run: npm ci
       - run: npm run tauri build -- --bundles ${{ matrix.bundles }}
       - uses: actions/upload-artifact@v4

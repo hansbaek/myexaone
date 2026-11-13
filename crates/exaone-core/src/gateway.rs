@@ -45,6 +45,17 @@ pub fn command(rt: &Runtime, cfg: &GatewayConfig) -> Command {
     cmd
 }
 
+/// 앱에서 쓰는 실행 방식: 콘솔 창 없이 띄우고 출력은 파이프로 받는다. 끌 때는 [`crate::process::kill_tree`].
+pub fn spawn_background(rt: &Runtime, cfg: &GatewayConfig) -> Result<Child> {
+    let mut cmd = command(rt, cfg);
+    crate::process::background(&mut cmd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("게이트웨이를 실행하지 못했습니다")
+}
+
 pub fn spawn(rt: &Runtime, cfg: &GatewayConfig, stdout: Stdio, stderr: Stdio) -> Result<Child> {
     command(rt, cfg)
         .stdin(Stdio::null())
@@ -76,6 +87,28 @@ pub fn wait_healthy(port: u16, child: &mut Child, timeout: Duration) -> Result<(
     while start.elapsed() < timeout {
         if let Some(status) = child.try_wait()? {
             bail!("게이트웨이가 시작 중에 종료됐습니다 ({status})");
+        }
+        if is_healthy(port) {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    bail!(
+        "게이트웨이가 {}초 안에 준비되지 않았습니다",
+        timeout.as_secs()
+    )
+}
+
+/// 게이트웨이가 준비될 때까지 기다린다. `exited` 가 참이 되면(프로세스 종료) 바로 오류.
+pub fn wait_healthy_with(
+    port: u16,
+    timeout: Duration,
+    mut exited: impl FnMut() -> bool,
+) -> Result<()> {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        if exited() {
+            bail!("게이트웨이가 시작 중에 종료됐습니다");
         }
         if is_healthy(port) {
             return Ok(());
@@ -130,11 +163,11 @@ mod tests {
     }
 
     #[test]
-    fn free_port_is_not_in_use() {
+    fn bound_port_is_in_use() {
         let l = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = l.local_addr().unwrap().port();
         assert!(port_in_use(port));
+        // 닫은 뒤의 확인은 하지 않는다: 병렬 테스트의 바깥 연결이 같은 임시 포트를 가져갈 수 있다.
         drop(l);
-        assert!(!port_in_use(port));
     }
 }
