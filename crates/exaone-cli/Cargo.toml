@@ -1,0 +1,18 @@
+[package]
+name = "exaone-cli"
+description = "EXAONE 게이트웨이와 Claude Code·Codex를 다루는 명령줄 도구"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "exaone"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+ctrlc.workspace = true
+exaone-core = { path = "../exaone-core" }
+rpassword.workspace = true

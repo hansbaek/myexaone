@@ -11,64 +11,89 @@ Codex CLI ──── /v1/responses ─┼─ 게이트웨이(127.0.0.1:4000) �
 Antigravity ── MCP(exaone_chat) ─────────────────────────────────────────────────────── api.exaone.ai
 ```
 
-## 처음 한 번
+## 설치 (macOS·Windows)
+
+`exaone` 명령 하나로 게이트웨이와 Claude Code·Codex를 다룹니다. 빌드하려면 Rust와 [uv](https://docs.astral.sh/uv/)가 필요합니다.
 
 ```bash
-bin/setup
+cargo build --release
 ```
 
-`.env`가 만들어집니다. 키는 아래 명령으로 넣습니다(화면에 표시되지 않음). `.env`를 직접 열어 `EXAONE_API_KEY=` 뒤에 넣어도 됩니다.
+실행 파일은 `target/release/exaone`(Windows는 `exaone.exe`)입니다. PATH에 있는 폴더로 복사해 두면 어디서나 `exaone`으로 실행할 수 있습니다. GitHub Actions 실행 결과의 `exaone-cli-macOS`, `exaone-cli-Windows`에서 빌드된 파일을 받을 수도 있습니다.
+
+처음 한 번, 실행 환경(LiteLLM)을 설치하고 API 키를 저장합니다. 키는 OS 키 저장소(macOS 키체인, Windows 자격 증명 관리자)에 들어가며 화면에 표시되지 않습니다.
 
 ```bash
-bin/set-key
+exaone setup
 ```
 
-그다음 실제 API가 도구 호출을 지원하는지 확인합니다.
+실제 API가 도구 호출을 지원하는지 확인하려면 다음을 실행합니다. 2026-11-13 기준 10개 항목이 모두 통과했습니다.
 
 ```bash
-bin/verify-api
+exaone verify
 ```
-
-항목별 통과/실패와 rate limit 헤더가 출력됩니다. 2026-11-13 기준 10개 항목(도구 호출, 병렬 호출, 스트리밍 도구 호출, JSON 스키마 출력 등)이 모두 통과했습니다. "도구 호출"과 "도구 결과를 넣은 후속 응답"이 실패하면 Claude Code와 Codex는 EXAONE으로 동작하지 않습니다(MCP 방식만 가능).
 
 ## 사용
 
-게이트웨이를 터미널 하나에 띄워 둡니다.
+게이트웨이를 터미널 하나에 띄워 둡니다(Ctrl+C로 종료).
 
 ```bash
-bin/gateway
+exaone gateway
 ```
 
-다른 터미널에서 작업할 폴더로 이동한 뒤 실행합니다. 인자는 원래 명령에 그대로 전달됩니다.
+다른 터미널에서 작업할 폴더로 이동한 뒤 실행합니다. 뒤의 인자는 원래 명령에 그대로 전달됩니다.
 
 ```bash
-/이/폴더/bin/exaone-claude
+exaone claude
 ```
 
 ```bash
-/이/폴더/bin/exaone-codex
+exaone codex
 ```
 
-두 래퍼 모두 해당 프로세스의 설정만 바꿉니다. 평소의 `claude`, `codex` 설정과 로그인은 그대로입니다.
+평소의 `claude`, `codex` 설정과 로그인은 바뀌지 않습니다. 연결이 안 되면 먼저 진단을 실행하세요. 실행 환경, 키, 게이트웨이, `claude`·`codex` 위치, Claude 설정 충돌을 한 번에 보여 줍니다.
 
-### Antigravity (MCP)
+```bash
+exaone doctor
+```
 
-Antigravity의 MCP 서버 설정(원본 JSON 편집)에 아래를 추가합니다. 경로는 이 폴더의 절대 경로로 바꾸세요. 게이트웨이를 띄울 필요는 없습니다.
+| 명령 | 하는 일 |
+|---|---|
+| `exaone setup` | 실행 환경 설치, 키가 없으면 입력받기 |
+| `exaone key set` / `status` / `delete` | API 키 관리 |
+| `exaone gateway [--port N]` | 게이트웨이 실행 |
+| `exaone claude …`, `exaone codex …` | EXAONE으로 실행 |
+| `exaone mcp` | `exaone_chat` MCP 서버 (stdio) |
+| `exaone verify` | 실제 API 기능 점검 |
+| `exaone doctor` | 환경 진단 |
+
+데이터 폴더는 macOS `~/Library/Application Support/EXAONE Studio`, Windows `%APPDATA%\EXAONE Studio`입니다. 설정(`settings.json`의 `gateway_port`, `api_base`)과 실행 환경이 여기 들어갑니다.
+
+### MCP (Antigravity 등)
+
+MCP 클라이언트 설정에 아래를 추가합니다. 게이트웨이를 띄울 필요는 없습니다.
 
 ```json
 {
   "mcpServers": {
-    "exaone": { "command": "/절대/경로/bin/exaone-mcp" }
+    "exaone": { "command": "exaone", "args": ["mcp"] }
   }
 }
 ```
 
-에이전트가 `exaone_chat` 도구로 EXAONE에게 질문이나 작업을 위임할 수 있습니다. 같은 서버를 Claude Code(`claude mcp add exaone /절대/경로/bin/exaone-mcp`)나 Codex에도 등록할 수 있습니다.
+PATH에 `exaone`이 없으면 `command`에 실행 파일의 절대 경로를 씁니다. Claude Code에는 `claude mcp add --scope user exaone -- exaone mcp`로 등록합니다.
+
+### 기존 맥 전용 스크립트
+
+`bin/` 아래 bash 스크립트(`bin/gateway`, `bin/exaone-claude` 등)와 `mcp/exaone_mcp.py`도 그대로 동작합니다. 이 스크립트들은 `.env`와 저장소 안의 `.venv`를 씁니다. 같은 일을 `exaone` 명령이 대신하므로 나중에 정리할 예정입니다.
 
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
+| `crates/exaone-core` | 핵심 로직: 실행 환경, 키 저장소, 게이트웨이, Claude·Codex 실행, MCP, 진단 |
+| `crates/exaone-cli` | `exaone` 명령 |
+| `app/` | 데스크톱 앱 (Tauri 2, 개발 중) |
 | `gateway/config.yaml` | LiteLLM 설정. 모델 등록, 권장 샘플링 값, 재시도, 버릴 파라미터 |
 | `bin/set-key` | API 키를 화면 표시 없이 `.env`에 저장 |
 | `bin/gateway` | 게이트웨이 실행 |
@@ -76,6 +101,8 @@ Antigravity의 MCP 서버 설정(원본 JSON 편집)에 아래를 추가합니�
 | `bin/exaone-mcp`, `mcp/exaone_mcp.py` | MCP 서버 |
 | `bin/verify-api`, `tests/verify_api.py` | 실제 API 기능 점검 |
 | `tests/mock_upstream.py` | 키 없이 변환 경로를 시험하는 가짜 EXAONE 서버 |
+| `tests/smoke_gateway.py` | 게이트웨이 변환 경로 점검 (OS 공용) |
+| `tests/e2e_cli.sh` | `exaone` 명령 종단 간 시험 (CI) |
 
 ## 설정에서 알아둘 점
 
@@ -83,11 +110,11 @@ Antigravity의 MCP 서버 설정(원본 JSON 편집)에 아래를 추가합니�
 - Claude Code와 Codex가 `claude-*`, `gpt-*` 이름으로 보내는 요청도 전부 EXAONE으로 갑니다.
 - `rpm: 60`은 실제 응답 헤더(초당 1회, 분당 60회, 하루 86,400회)와 같은 값입니다.
 - 개인 한도와 별개로, 서버 전체가 붐비면 `service is busy, too many concurrent requests(600)` 429가 옵니다. 게이트웨이는 6번까지 재시도하지만 붐비는 시간대에는 응답이 느려지거나 실패할 수 있습니다.
-- `reasoning_effort`는 도구가 보내는 값이 그대로 전달됩니다. API 문서는 `low`/`high`/`max`만 적고 있어, `medium`이 거부되는지는 `bin/verify-api`로 확인됩니다.
+- `reasoning_effort`는 도구가 보내는 값이 그대로 전달됩니다. API 문서는 `low`/`high`/`max`만 적고 있어, 실제로는 `medium`도 받습니다(`exaone verify`로 확인).
 
 ## 한계
 
-- Claude Code는 셸 환경 변수보다 `~/.claude/settings.json`의 `env` 값을 우선합니다. 그래서 `bin/exaone-claude`는 연결 설정을 `--settings`로 넘깁니다. 그 파일에 다른 도구가 넣은 `ANTHROPIC_BASE_URL`이 있어도 이 래퍼는 게이트웨이로 연결되지만, 평소의 `claude` 명령은 그 주소로 연결됩니다.
+- Claude Code는 셸 환경 변수보다 `~/.claude/settings.json`의 `env` 값을 우선합니다. 그래서 `exaone claude`는 연결 설정을 `--settings`로 넘깁니다. `exaone doctor`가 이 충돌을 알려 줍니다. 그 파일에 다른 도구가 넣은 `ANTHROPIC_BASE_URL`이 있어도 이 래퍼는 게이트웨이로 연결되지만, 평소의 `claude` 명령은 그 주소로 연결됩니다.
 - Claude Code 시작 시 `[claude-code:unrecognized_model]` 한 줄이 출력됩니다. 모르는 모델 이름이라 나오는 안내이며 동작에는 영향이 없습니다.
 - 간단한 작업(파일 하나 작성 후 실행)에 Claude Code 약 40초, Codex 약 66초가 걸렸습니다.
 - K-EXAONE 2.5는 텍스트 전용이라 이미지 첨부와 스크린샷 기능은 동작하지 않습니다.

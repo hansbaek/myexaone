@@ -1,0 +1,21 @@
+[package]
+name = "exaone-core"
+description = "EXAONE 게이트웨이 실행 환경, 키 관리, Claude Code·Codex 실행, MCP 서버"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+dirs.workspace = true
+keyring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ureq.workspace = true
+uuid.workspace = true
+which.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

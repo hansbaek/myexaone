@@ -31,6 +31,42 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
           "$PY" tests/smoke_gateway.py
 
+  # 1단계: exaone 명령(Rust)을 단위 테스트하고, 실제 Claude Code·Codex·MCP로 끝까지 시험
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --release
+      - name: Install Claude Code and Codex
+        run: npm install -g @anthropic-ai/claude-code @openai/codex
+      - name: End-to-end (mock upstream)
+        run: bash tests/e2e_cli.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exaone-cli-${{ runner.os }}
+          path: |
+            target/release/exaone
+            target/release/exaone.exe
+          if-no-files-found: error
+
   app:
     strategy:
       fail-fast: false
