@@ -32,7 +32,12 @@ fn main() -> anyhow::Result<()> {
     };
     let rest: Vec<String> = args.collect();
     let settings = Settings::load()?;
-    let cmd = launch::tool_command(tool, &settings.gateway_url(), &secrets::master_key()?, &rest)?;
+    let cmd = launch::tool_command(
+        tool,
+        &settings.gateway_url(),
+        &secrets::master_key()?,
+        &rest,
+    )?;
     let (tx, rx) = mpsc::channel();
     let cwd = std::env::temp_dir();
     let _s = PtySession::spawn(&cmd, &cwd, 100, 30, Arc::new(Print(Mutex::new(tx))))?;
