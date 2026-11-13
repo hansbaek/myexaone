@@ -1,6 +1,7 @@
 //! EXAONE Studio 데스크톱 앱. 핵심 로직은 exaone-core 에 있고, 여기는 화면과 잇는 부분만 둔다.
 
 mod manager;
+mod sessions;
 
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use exaone_core::settings::Settings;
 use exaone_core::{doctor, runtime::Runtime, secrets};
 use manager::{LogLine, Manager};
 use serde::Serialize;
+use sessions::Sessions;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager as _, RunEvent, State, WindowEvent};
@@ -97,6 +99,45 @@ fn run_doctor() -> Vec<CheckDto> {
         .collect()
 }
 
+#[tauri::command(async)]
+fn open_session(
+    app: AppHandle,
+    sessions: State<'_, Arc<Sessions>>,
+    tool: String,
+    cwd: String,
+    cols: u16,
+    rows: u16,
+) -> Result<u32, String> {
+    Sessions::open(sessions.inner(), app, &tool, &cwd, cols, rows).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command(async)]
+fn write_session(sessions: State<'_, Arc<Sessions>>, id: u32, data: String) -> Result<(), String> {
+    sessions.write(id, &data).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command(async)]
+fn resize_session(
+    sessions: State<'_, Arc<Sessions>>,
+    id: u32,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    sessions
+        .resize(id, cols, rows)
+        .map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command(async)]
+fn close_session(sessions: State<'_, Arc<Sessions>>, id: u32) {
+    sessions.remove(id);
+}
+
+#[tauri::command(async)]
+fn home_dir() -> Option<String> {
+    std::env::home_dir().map(|p| p.display().to_string())
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -137,9 +178,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mgr: Shared = Arc::new(Manager::default());
+    let sessions = Arc::new(Sessions::default());
+    let sessions_exit = sessions.clone();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(mgr.clone())
+        .manage(sessions)
         .invoke_handler(tauri::generate_handler![
             get_status,
             start_gateway,
@@ -147,7 +192,12 @@ pub fn run() {
             get_logs,
             set_api_key,
             delete_api_key,
-            run_doctor
+            run_doctor,
+            open_session,
+            write_session,
+            resize_session,
+            close_session,
+            home_dir
         ])
         .setup(|app| {
             build_tray(app.handle())?;
@@ -172,7 +222,10 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(move |app, event| match event {
-        RunEvent::Exit => mgr.stop(),
+        RunEvent::Exit => {
+            sessions_exit.close_all();
+            mgr.stop();
+        }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => show_main(app),
         _ => {

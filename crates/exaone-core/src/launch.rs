@@ -193,6 +193,16 @@ mod tests {
     }
 
     #[test]
+    fn augmented_path_keeps_existing_and_puts_first_dir_first() {
+        let p = augmented_path(Some(Path::new("/x/first")));
+        let dirs: Vec<_> = std::env::split_paths(&p).collect();
+        assert_eq!(dirs[0], Path::new("/x/first"));
+        for d in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
+            assert!(dirs.contains(&d));
+        }
+    }
+
+    #[test]
     fn codex_args_have_no_quotes() {
         let a = codex_args("http://127.0.0.1:4000");
         assert!(a.iter().all(|x| !x.contains('"')));
@@ -202,4 +212,69 @@ mod tests {
         assert!(a.contains(&"model_providers.exaone.wire_api=responses".to_string()));
         assert_eq!(a.iter().filter(|x| *x == "-c").count(), a.len() / 2);
     }
+}
+
+/// EXAONE으로 실행할 수 있는 코딩 도구.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tool {
+    Claude,
+    Codex,
+}
+
+impl Tool {
+    pub fn program_name(self) -> &'static str {
+        match self {
+            Tool::Claude => "claude",
+            Tool::Codex => "codex",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Tool::Claude => "Claude Code",
+            Tool::Codex => "Codex",
+        }
+    }
+}
+
+/// 도구를 게이트웨이에 붙여 실행하는 명령을 만든다 (프로그램 찾기와 설정 파일 쓰기 포함).
+pub fn tool_command(
+    tool: Tool,
+    gateway_url: &str,
+    gateway_key: &str,
+    user_args: &[String],
+) -> Result<Command> {
+    let program = find_program(tool.program_name()).with_context(|| {
+        format!(
+            "`{}` 명령을 찾을 수 없습니다. {}를 설치하세요.",
+            tool.program_name(),
+            tool.label()
+        )
+    })?;
+    let mut cmd = match tool {
+        Tool::Claude => {
+            let file = write_claude_settings(gateway_url, gateway_key)?;
+            claude_command(&program, &file, gateway_url, gateway_key, user_args)
+        }
+        Tool::Codex => codex_command(&program, gateway_url, gateway_key, user_args),
+    };
+    cmd.env("PATH", augmented_path(program.parent()));
+    Ok(cmd)
+}
+
+/// 현재 PATH에 흔한 설치 위치를 더한 값. Finder·시작 메뉴로 띄운 앱은 셸의 PATH를 물려받지 않아,
+/// 도구가 내부에서 부르는 `node`, `git` 등을 못 찾는 일을 막는다.
+pub fn augmented_path(first: Option<&Path>) -> std::ffi::OsString {
+    let mut dirs: Vec<PathBuf> = first.map(Path::to_path_buf).into_iter().collect();
+    dirs.extend(
+        std::env::var_os("PATH")
+            .iter()
+            .flat_map(std::env::split_paths),
+    );
+    for d in extra_dirs() {
+        if !dirs.contains(&d) {
+            dirs.push(d);
+        }
+    }
+    std::env::join_paths(dirs).unwrap_or_else(|_| std::env::var_os("PATH").unwrap_or_default())
 }

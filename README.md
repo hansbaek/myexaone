@@ -26,7 +26,7 @@ Antigravity ── MCP(exaone_chat) ──────────────�
 cd app && npm install && npm run tauri build
 ```
 
-Claude Code·Codex 세션은 아직 터미널에서 `exaone claude`, `exaone codex`로 실행합니다(앱 안 터미널은 다음 단계).
+세션 탭에서 도구(Claude Code 또는 Codex)와 작업 폴더를 고르면 앱 안 터미널에서 바로 실행됩니다. 탭을 여러 개 열 수 있고, 최근 폴더를 기억합니다. 터미널에서 `exaone claude`, `exaone codex`로 실행해도 됩니다.
 
 ## 명령줄 도구 설치 (macOS·Windows)
 

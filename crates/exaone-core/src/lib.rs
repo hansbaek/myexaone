@@ -16,6 +16,7 @@ pub mod launch;
 pub mod mcp;
 pub mod paths;
 pub mod process;
+pub mod pty;
 pub mod runtime;
 pub mod secrets;
 pub mod settings;

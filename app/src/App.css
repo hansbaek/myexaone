@@ -11,6 +11,8 @@
   --warn: #b7791f;
   --fail: #c53030;
   --code-bg: #f0efeb;
+  --term-bg: #1e1e1d;
+  --term-fg: #e8e7e3;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -153,3 +155,31 @@ input {
 .kv { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; }
 .kv + .kv { border-top: 1px solid var(--line); }
 .kv > span:first-child { color: var(--muted); }
+
+/* ── 세션 ─────────────────────────────── */
+.sessions { flex: 1; min-width: 0; flex-direction: column; }
+.tabbar { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--line); background: var(--side); overflow-x: auto; overflow-y: hidden; flex: none; }
+.tab {
+  display: flex; align-items: center; gap: 7px; padding: 6px 6px 6px 12px; border-radius: 7px 7px 0 0;
+  cursor: pointer; max-width: 240px; flex: none; color: var(--muted); border: 1px solid transparent; border-bottom: 0;
+}
+.tab:hover { color: var(--text); }
+.tab.on { background: var(--bg); color: var(--text); border-color: var(--line); margin-bottom: -1px; }
+.tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-close { border: 0; background: transparent; padding: 0 5px; color: var(--muted); font-size: 15px; line-height: 1; }
+.tab-close:hover { color: var(--text); }
+button.tab.new { border: 1px solid transparent; border-bottom: 0; background: transparent; padding: 6px 12px; }
+button.tab.new.on { background: var(--bg); border-color: var(--line); }
+.term-area { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.term { flex: 1; min-height: 0; background: var(--term-bg); padding: 8px 4px 4px 10px; }
+.term .xterm { height: 100%; }
+.new-session { padding: 24px 28px; overflow-y: auto; max-width: 720px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 16px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.recent { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.recent-item { display: flex; align-items: center; gap: 6px; }
+button.link { border: 0; background: transparent; padding: 3px 0; color: var(--muted); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+button.link:hover { color: var(--text); text-decoration: underline; background: transparent !important; }
+.actions { margin-top: 20px; }

@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use exaone_core::doctor::{self, Level};
 use exaone_core::gateway::{self, GatewayConfig};
+use exaone_core::launch::Tool;
 use exaone_core::settings::Settings;
 use exaone_core::{assets, launch, mcp, paths, runtime, secrets};
 
@@ -219,35 +220,15 @@ fn run_gateway(port: Option<u16>) -> Result<ExitCode> {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Tool {
-    Claude,
-    Codex,
-}
-
 fn run_tool(tool: Tool, args: &[String]) -> Result<ExitCode> {
     let settings = Settings::load()?;
     if !gateway::is_healthy(settings.gateway_port) {
         bail!(
-            "게이트웨이가 꺼져 있습니다 ({}). 다른 터미널에서 `exaone gateway` 를 먼저 실행하세요.",
+            "게이트웨이가 꺼져 있습니다 ({}). EXAONE Studio 앱을 켜거나 다른 터미널에서 `exaone gateway` 를 실행하세요.",
             settings.gateway_url()
         );
     }
-    let url = settings.gateway_url();
-    let key = secrets::master_key()?;
-    let cmd = match tool {
-        Tool::Claude => {
-            let program = launch::find_program("claude")
-                .context("`claude` 명령을 찾을 수 없습니다. Claude Code를 설치하세요.")?;
-            let file = launch::write_claude_settings(&url, &key)?;
-            launch::claude_command(&program, &file, &url, &key, args)
-        }
-        Tool::Codex => {
-            let program = launch::find_program("codex")
-                .context("`codex` 명령을 찾을 수 없습니다. Codex CLI를 설치하세요.")?;
-            launch::codex_command(&program, &url, &key, args)
-        }
-    };
+    let cmd = launch::tool_command(tool, &settings.gateway_url(), &secrets::master_key()?, args)?;
     exec(cmd)
 }
 

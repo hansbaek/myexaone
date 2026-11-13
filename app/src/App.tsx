@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, Check, LogLine, Phase, Status } from "./api";
+import Sessions from "./Sessions";
 import "./App.css";
 
-type Tab = "home" | "logs" | "settings";
+type Tab = "home" | "sessions" | "logs" | "settings";
 
 const PHASE_LABEL: Record<Phase, string> = {
   stopped: "꺼짐",
@@ -42,6 +43,7 @@ export default function App() {
       <nav className="side">
         <div className="brand">EXAONE Studio</div>
         <button className={tab === "home" ? "on" : ""} onClick={() => setTab("home")}>대시보드</button>
+        <button className={tab === "sessions" ? "on" : ""} onClick={() => setTab("sessions")}>세션</button>
         <button className={tab === "logs" ? "on" : ""} onClick={() => setTab("logs")}>로그</button>
         <button className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>설정</button>
         <div className="side-foot">
@@ -49,7 +51,9 @@ export default function App() {
           {PHASE_LABEL[status.phase]}
         </div>
       </nav>
-      <main>
+      {/* 세션은 탭을 옮겨도 터미널이 살아 있도록 항상 그려 두고 숨기기만 한다. */}
+      <Sessions visible={tab === "sessions"} gatewayReady={status.phase === "running" || status.phase === "external"} />
+      <main style={{ display: tab === "sessions" ? "none" : undefined }}>
         {tab === "home" && <Home status={status} refresh={refresh} goSettings={() => setTab("settings")} />}
         {tab === "logs" && <Logs logs={logs} />}
         {tab === "settings" && <Settings status={status} refresh={refresh} />}
@@ -115,7 +119,9 @@ function Home({ status, refresh, goSettings }: { status: Status; refresh: () => 
 
       <h2>터미널에서 쓰기</h2>
       <section className="card">
-        <p className="sub">게이트웨이가 켜져 있는 동안, 작업할 폴더의 터미널에서 실행합니다.</p>
+        <p className="sub">
+          앱의 세션 탭에서 바로 실행하거나, 게이트웨이가 켜져 있는 동안 작업할 폴더의 터미널에서 실행합니다.
+        </p>
         <Copyable text="exaone claude" />
         <Copyable text="exaone codex" />
       </section>

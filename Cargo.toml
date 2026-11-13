@@ -15,6 +15,7 @@ anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
 ctrlc = "3"
 dirs = "7.0.0"
+portable-pty = "0.9.0"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 rpassword = "7.5.5"
 serde = { version = "1.0.229", features = ["derive"] }
