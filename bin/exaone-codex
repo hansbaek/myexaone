@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Codex CLI를 EXAONE으로 실행합니다. 인자는 codex 에 그대로 전달됩니다.
+# ~/.codex/config.toml 은 건드리지 않고 -c 옵션으로만 설정을 덮어씁니다.
+set -euo pipefail
+. "$(dirname "$0")/_env.sh"
+require_gateway
+
+export EXAONE_GATEWAY_KEY="$LITELLM_MASTER_KEY"
+exec codex \
+  -c "model_providers.exaone={name=\"EXAONE\", base_url=\"${GATEWAY_URL}/v1\", env_key=\"EXAONE_GATEWAY_KEY\", wire_api=\"responses\"}" \
+  -c 'model_provider="exaone"' \
+  -c 'model="k-exaone"' \
+  -c 'model_reasoning_effort="high"' \
+  "$@"

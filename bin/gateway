@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# 로컬 게이트웨이 실행 (이 컴퓨터에서만 접속 가능)
+set -euo pipefail
+. "$(dirname "$0")/_env.sh"
+if [ -z "${EXAONE_API_KEY:-}" ]; then
+  echo ".env 의 EXAONE_API_KEY 가 비어 있습니다." >&2
+  exit 1
+fi
+export EXAONE_API_KEY EXAONE_API_BASE LITELLM_MASTER_KEY
+exec "$ROOT/.venv/bin/litellm" --config "$ROOT/gateway/config.yaml" \
+  --host 127.0.0.1 --port "$GATEWAY_PORT" "$@"

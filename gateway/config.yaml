@@ -1,0 +1,46 @@
+# EXAONE 게이트웨이 (LiteLLM)
+#   /v1/messages          -> Claude Code
+#   /v1/responses         -> Codex CLI
+#   /v1/chat/completions  -> 그 밖의 OpenAI 호환 도구
+# 세 경로 모두 https://api.exaone.ai/v1/chat/completions 로 변환됩니다.
+
+x-exaone: &exaone
+  model: hosted_vllm/k-exaone_v2.5
+  api_base: os.environ/EXAONE_API_BASE
+  api_key: os.environ/EXAONE_API_KEY
+  # EXAONE에는 /v1/responses 가 없으므로 Responses 요청도 Chat Completions 로 바꿔 보냅니다.
+  use_chat_completions_api: true
+  # EXAONE 문서의 에이전트용 권장값
+  temperature: 1.0
+  top_p: 0.95
+  extra_body:
+    chat_template_kwargs:
+      preserve_thinking: true
+  # 문서의 예시 한도(분당 60회)에 맞춘 보수적 값. bin/verify-api 결과를 보고 조정하세요.
+  # EXAONE 문서에 없는 OpenAI/Anthropic 전용 파라미터는 보내지 않습니다.
+  additional_drop_params: ["prompt_cache_key", "prompt_cache_retention", "store", "include", "metadata", "user", "safety_identifier", "service_tier", "web_search_options"]
+  rpm: 60
+  timeout: 600
+
+model_list:
+  - model_name: k-exaone
+    litellm_params: *exaone
+  # 도구가 클로드/GPT 모델 이름을 그대로 보내도 EXAONE으로 가도록 받는 이름들
+  - model_name: "claude-*"
+    litellm_params: *exaone
+  - model_name: "gpt-*"
+    litellm_params: *exaone
+
+litellm_settings:
+  # EXAONE이 모르는 파라미터(thinking, metadata 등)는 오류 대신 버립니다.
+  drop_params: true
+  # 서버 전체가 붐빌 때도 429(too many concurrent requests)가 오므로 넉넉히 재시도합니다.
+  num_retries: 6
+  request_timeout: 600
+
+router_settings:
+  retry_after: 2
+  allowed_fails: 3
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

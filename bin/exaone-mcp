@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# EXAONE MCP 서버 실행 (Antigravity 등 MCP 클라이언트가 이 파일을 실행합니다).
+set -euo pipefail
+. "$(dirname "$0")/_env.sh"
+export EXAONE_API_KEY EXAONE_API_BASE
+exec "$ROOT/.venv/bin/python" "$ROOT/mcp/exaone_mcp.py"
