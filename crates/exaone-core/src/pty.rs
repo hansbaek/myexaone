@@ -214,10 +214,23 @@ mod tests {
         };
         cmd.env("EXAONE_PTY_TEST", "env-ok");
         let dir = std::env::temp_dir();
-        let _session = PtySession::spawn(&cmd, &dir, 80, 24, events.clone()).unwrap();
-        let code = rx
-            .recv_timeout(Duration::from_secs(20))
-            .expect("프로그램이 끝나야 한다");
+        let mut session = PtySession::spawn(&cmd, &dir, 80, 24, events.clone()).unwrap();
+        // Windows ConPTY는 시작할 때 커서 위치를 묻고(ESC[6n) 답을 기다린다. 앱에서는 xterm.js가 답한다.
+        let mut answered = false;
+        let start = std::time::Instant::now();
+        let code = loop {
+            if let Ok(code) = rx.recv_timeout(Duration::from_millis(50)) {
+                break code;
+            }
+            if !answered && events.0.lock().unwrap().contains("\x1b[6n") {
+                session.write("\x1b[1;1R").unwrap();
+                answered = true;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "프로그램이 끝나야 한다"
+            );
+        };
         assert_eq!(code, 0);
         let out = events.0.lock().unwrap().clone();
         assert!(out.contains("pty-hello env-ok"), "출력: {out:?}");
