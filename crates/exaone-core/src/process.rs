@@ -61,11 +61,10 @@ pub fn kill_tree(child: &mut Child, grace: Duration) {
     let _ = child.wait();
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn kill_tree_stops_process_group() {
         let mut cmd = Command::new("sh");
