@@ -232,16 +232,46 @@ mod tests {
         assert_eq!(error_message("plain"), "plain");
     }
 
+    /// 요청을 끝까지(헤더 + Content-Length 만큼의 본문) 읽는다. 다 읽기 전에 닫으면
+    /// 아직 보내던 클라이언트 쪽 연결이 끊긴다 (Windows에서 특히).
+    fn read_request(c: &mut std::net::TcpStream) {
+        use std::io::Read;
+        let mut data = Vec::new();
+        let mut buf = [0u8; 4096];
+        loop {
+            let n = c.read(&mut buf).unwrap_or(0);
+            if n == 0 {
+                return;
+            }
+            data.extend_from_slice(&buf[..n]);
+            if let Some(end) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();
+                let len: usize = head
+                    .lines()
+                    .find_map(|l| l.strip_prefix("content-length:"))
+                    .and_then(|v| v.trim().parse().ok())
+                    .unwrap_or(0);
+                while data.len() < end + 4 + len {
+                    let n = c.read(&mut buf).unwrap_or(0);
+                    if n == 0 {
+                        return;
+                    }
+                    data.extend_from_slice(&buf[..n]);
+                }
+                return;
+            }
+        }
+    }
+
     /// 정해진 응답을 차례로 돌려주는 아주 작은 HTTP 서버.
     fn serve(responses: Vec<(u16, String)>) -> String {
-        use std::io::{Read, Write};
+        use std::io::Write;
         let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}", l.local_addr().unwrap());
         std::thread::spawn(move || {
             for (status, body) in responses {
                 let (mut c, _) = l.accept().unwrap();
-                let mut buf = [0u8; 65536];
-                let _ = c.read(&mut buf);
+                read_request(&mut c);
                 let ctype = if status == 200 {
                     "text/event-stream"
                 } else {
