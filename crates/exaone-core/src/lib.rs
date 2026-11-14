@@ -9,6 +9,7 @@
 //! - [`doctor`]: 환경 진단
 
 pub mod assets;
+pub mod chat;
 pub mod doctor;
 pub mod exaone_api;
 pub mod gateway;
@@ -20,6 +21,7 @@ pub mod pty;
 pub mod runtime;
 pub mod secrets;
 pub mod settings;
+pub mod store;
 
 /// 게이트웨이에 등록된 모델 이름 (gateway/config.yaml 의 model_name).
 pub const GATEWAY_MODEL: &str = "k-exaone";

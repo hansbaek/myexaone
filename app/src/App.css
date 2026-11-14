@@ -192,3 +192,52 @@ button.link:hover { color: var(--text); text-decoration: underline; background: 
 .ime-preview.on { display: block; }
 .check-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--muted); cursor: pointer; }
 .check-row input { flex: none; }
+
+/* ── 대화 ─────────────────────────────── */
+.chat { flex: 1; min-width: 0; display: flex; }
+.chat-list { width: 220px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 8px 8px; gap: 8px; }
+.new-chat { margin: 0 4px; }
+.convs { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.conv { display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 10px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+.conv:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.conv.on { background: color-mix(in srgb, var(--text) 11%, transparent); color: var(--text); }
+.conv-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv .tab-close { visibility: hidden; }
+.conv:hover .tab-close { visibility: visible; }
+.hint.pad { padding: 8px 10px; }
+
+.chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.thread { flex: 1; min-height: 0; overflow-y: auto; padding: 24px max(24px, calc((100% - 760px) / 2)); display: flex; flex-direction: column; gap: 18px; user-select: text; }
+.thread.empty { align-items: center; justify-content: center; text-align: center; }
+.msg { max-width: 100%; }
+.msg.user { align-self: flex-end; max-width: 80%; }
+.user-text { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border: 1px solid var(--line); border-radius: 12px 12px 4px 12px; padding: 8px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.assistant { align-self: stretch; }
+.thinking { color: var(--muted); font-size: 13px; }
+.reasoning { margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+.reasoning summary { cursor: pointer; user-select: none; }
+.reasoning-text { white-space: pre-wrap; border-left: 2px solid var(--line); padding: 4px 0 4px 12px; margin-top: 6px; max-height: 260px; overflow-y: auto; }
+.msg-error { color: var(--fail); font-size: 13px; margin-top: 6px; }
+.msg-meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin-top: 6px; min-height: 20px; }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+button.ghost:hover:not(:disabled) { color: var(--text); }
+
+.md { overflow-wrap: anywhere; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md ul, .md ol, .md pre, .md blockquote, .md table { margin: 0 0 10px; }
+.md ul, .md ol { padding-left: 22px; }
+.md h1, .md h2, .md h3 { font-size: 15px; margin: 14px 0 6px; color: var(--text); display: block; }
+.md pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+.md pre code { background: none; padding: 0; font-size: 12.5px; }
+.md blockquote { border-left: 3px solid var(--line); padding-left: 12px; color: var(--muted); }
+.md table { border-collapse: collapse; }
+.md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
+.md a { color: var(--accent); }
+
+.chat-warn { margin: 0 max(24px, calc((100% - 760px) / 2)) 8px; padding: 8px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); font-size: 13px; }
+.chat-warn.error { border-color: color-mix(in srgb, var(--fail) 50%, var(--line)); color: var(--fail); }
+.composer { margin: 0 max(24px, calc((100% - 760px) / 2)) 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 10px 8px 12px; }
+.composer textarea { width: 100%; border: 0; background: transparent; color: var(--text); font: inherit; resize: none; outline: none; padding: 2px 0; max-height: 200px; }
+.composer-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.small-seg button { padding: 2px 10px; font-size: 12.5px; }

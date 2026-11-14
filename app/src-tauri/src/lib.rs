@@ -1,5 +1,6 @@
 //! EXAONE Studio 데스크톱 앱. 핵심 로직은 exaone-core 에 있고, 여기는 화면과 잇는 부분만 둔다.
 
+mod chat;
 mod manager;
 mod sessions;
 
@@ -211,11 +212,13 @@ pub fn run() {
     let mgr: Shared = Arc::new(Manager::default());
     let sessions = Arc::new(Sessions::default());
     let sessions_exit = sessions.clone();
+    let chat_state = Arc::new(chat::ChatState::default());
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(mgr.clone())
         .manage(sessions)
+        .manage(chat_state)
         .invoke_handler(tauri::generate_handler![
             get_status,
             start_gateway,
@@ -230,7 +233,15 @@ pub fn run() {
             close_session,
             home_dir,
             ime_log,
-            ime_log_path
+            ime_log_path,
+            chat::chat_list,
+            chat::chat_messages,
+            chat::chat_create,
+            chat::chat_rename,
+            chat::chat_delete,
+            chat::chat_stop,
+            chat::chat_running,
+            chat::chat_send
         ])
         .setup(|app| {
             build_tray(app.handle())?;

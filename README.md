@@ -19,6 +19,7 @@ Antigravity ── MCP(exaone_chat) ──────────────�
 - API 키는 설정 화면에서 입력합니다(OS 키 저장소에 저장).
 - uv가 앱에 들어 있어, 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 설치합니다.
 - 로그와 진단을 화면에서 볼 수 있습니다.
+- 대화 탭에서 EXAONE과 바로 대화합니다. 답변은 스트리밍으로 오고, 추론 과정은 접어서 보여 줍니다. 대화 기록은 데이터 폴더의 `studio.db`(SQLite)에만 저장됩니다.
 
 빌드는 `app/`에서 합니다. 결과물은 `app/src-tauri/target/release/bundle/`에 생깁니다.
 
