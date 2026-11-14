@@ -175,7 +175,8 @@ export default function Chat({ visible, gatewayReady }: { visible: boolean; gate
           running={isRunning}
           onSend={send}
           onStop={() => active !== null && chatApi.stop(active)}
-          focusKey={active}
+          focusKey={`${visible}-${active}-${isRunning}-${gatewayReady}`}
+          visible={visible}
         />
       </section>
     </div>
@@ -295,18 +296,25 @@ function Composer({
   onSend,
   onStop,
   focusKey,
+  visible,
 }: {
   disabled: boolean;
   running: boolean;
   onSend: (text: string, effort: Effort) => Promise<boolean>;
   onStop: () => void;
-  focusKey: number | null;
+  focusKey: string;
+  visible: boolean;
 }) {
   const [text, setText] = useState("");
   const [effort, setEffort] = useState<Effort>(loadEffort);
   const ta = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => ta.current?.focus(), [focusKey]);
+  // 보이는 상태에서만 포커스한다 (숨겨진 요소는 포커스를 받지 못한다). 화면이 바뀐 직후에 옮긴다.
+  useEffect(() => {
+    if (!visible || disabled) return;
+    const id = window.setTimeout(() => ta.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [focusKey, visible, disabled]);
 
   // 내용에 맞춰 높이를 늘린다 (최대 8줄 정도).
   useEffect(() => {
@@ -324,7 +332,16 @@ function Composer({
   };
 
   return (
-    <div className="composer">
+    <div
+      className={`composer ${disabled ? "off" : ""}`}
+      // 입력창 바깥 여백을 눌러도 입력창으로 커서가 가게 한다 (버튼은 제외).
+      onMouseDown={(e) => {
+        const t = e.target as HTMLElement;
+        if (t.closest("button") || t === ta.current) return;
+        e.preventDefault();
+        ta.current?.focus();
+      }}
+    >
       <textarea
         ref={ta}
         rows={1}
