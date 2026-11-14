@@ -165,6 +165,15 @@ fn ime_log_path() -> Result<String, String> {
     ime_log_file().map(|p| p.display().to_string())
 }
 
+/// 게이트웨이 사용 기록을 저장소로 옮긴 뒤 `since`(유닉스 초) 이후를 집계한다.
+#[tauri::command(async)]
+fn usage_summary(since: f64) -> Result<exaone_core::usage::Summary, String> {
+    let store = exaone_core::store::Store::open_default().map_err(|e| format!("{e:#}"))?;
+    let log = exaone_core::usage::log_file().map_err(|e| format!("{e:#}"))?;
+    exaone_core::usage::ingest(&store, &log).map_err(|e| format!("{e:#}"))?;
+    exaone_core::usage::summary(&store, since).map_err(|e| format!("{e:#}"))
+}
+
 #[tauri::command(async)]
 fn home_dir() -> Option<String> {
     std::env::home_dir().map(|p| p.display().to_string())
@@ -241,7 +250,8 @@ pub fn run() {
             chat::chat_delete,
             chat::chat_stop,
             chat::chat_running,
-            chat::chat_send
+            chat::chat_send,
+            usage_summary
         ])
         .setup(|app| {
             build_tray(app.handle())?;

@@ -32,6 +32,8 @@ model_list:
     litellm_params: *exaone
 
 litellm_settings:
+  # 요청마다 사용 기록을 남긴다 (gateway/usage_logger.py, 내용은 남기지 않음)
+  callbacks: usage_logger.proxy_handler_instance
   # EXAONE이 모르는 파라미터(thinking, metadata 등)는 오류 대신 버립니다.
   drop_params: true
   # 서버 전체가 붐빌 때도 429(too many concurrent requests)가 오므로 넉넉히 재시도합니다.

@@ -6,3 +6,5 @@ pub const GATEWAY_CONFIG: &str = include_str!("../../../gateway/config.yaml");
 pub const REQUIREMENTS: &str = include_str!("../../../requirements.txt");
 /// 실제 EXAONE API 기능 점검 스크립트.
 pub const VERIFY_API: &str = include_str!("../../../tests/verify_api.py");
+/// 게이트웨이 사용 기록 콜백 (설정 파일과 같은 폴더에 둔다).
+pub const USAGE_LOGGER: &str = include_str!("../../../gateway/usage_logger.py");

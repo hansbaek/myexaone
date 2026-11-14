@@ -2,6 +2,7 @@
 
 - 받은 요청 본문을 전부 로그 파일(JSONL)에 남긴다.
 - user 메시지에 `MOCK_TOOL <이름> <JSON인자> END` 가 있으면 그 도구 호출을 돌려준다.
+- 요청에 `MOCK_429` 가 있으면 429(서버 혼잡)를 돌려준다. `MOCK_BUSY2` 는 처음 두 번만 429.
 - 대화에 tool 결과가 이미 있으면 "MOCK_DONE", 그 밖에는 "MOCK_OK" 를 돌려준다.
 
 사용: python mock_upstream.py <port> <log.jsonl>
@@ -46,6 +47,19 @@ class H(BaseHTTPRequestHandler):
         body = json.loads(raw or b"{}")
         with open(LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps({"path": self.path, "auth": bool(self.headers.get("authorization")), "body": body}, ensure_ascii=False) + "\n")
+        raw_text = json.dumps(body, ensure_ascii=False)
+        busy = "MOCK_429" in raw_text
+        if "MOCK_BUSY2" in raw_text:  # 처음 두 번만 429
+            H.busy_count = getattr(H, "busy_count", 0) + 1
+            busy = H.busy_count <= 2
+        if busy:
+            data = b'{"error":{"message":"service is busy, too many concurrent requests(600)","type":"rate_limit_error","code":"rate_limit_exceeded"}}'
+            self.send_response(429)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         text, tool = decide(body)
         cid, now, model = "chatcmpl-mock", int(time.time()), body.get("model", "k-exaone_v2.5")
         usage = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15, "reasoning_tokens": 3}

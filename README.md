@@ -19,6 +19,7 @@ Antigravity ── MCP(exaone_chat) ──────────────�
 - API 키는 설정 화면에서 입력합니다(OS 키 저장소에 저장).
 - uv가 앱에 들어 있어, 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 설치합니다.
 - 로그와 진단을 화면에서 볼 수 있습니다.
+- 사용량 탭에서 게이트웨이를 거친 요청(Claude Code·Codex 세션, 대화 창)의 출처별·날짜별 토큰, 서버 혼잡(429) 비율, 평균 응답 시간을 봅니다. 기록에는 질문·답변 내용이 들어가지 않습니다.
 - 대화 탭에서 EXAONE과 바로 대화합니다. 답변은 스트리밍으로 오고, 추론 과정은 접어서 보여 줍니다. 대화 기록은 데이터 폴더의 `studio.db`(SQLite)에만 저장됩니다.
 
 빌드는 `app/`에서 합니다. 결과물은 `app/src-tauri/target/release/bundle/`에 생깁니다.
@@ -113,6 +114,7 @@ PATH에 `exaone`이 없으면 `command`에 실행 파일의 절대 경로를 씁
 | `crates/exaone-cli` | `exaone` 명령 |
 | `app/` | 데스크톱 앱 (Tauri 2, 개발 중) |
 | `gateway/config.yaml` | LiteLLM 설정. 모델 등록, 권장 샘플링 값, 재시도, 버릴 파라미터 |
+| `gateway/usage_logger.py` | 요청마다 사용 기록(출처, 토큰, 시간, 재시도 횟수)을 남기는 LiteLLM 콜백 |
 | `bin/set-key` | API 키를 화면 표시 없이 `.env`에 저장 |
 | `bin/gateway` | 게이트웨이 실행 |
 | `bin/exaone-claude`, `bin/exaone-codex` | 각 도구를 게이트웨이에 붙여 실행 |

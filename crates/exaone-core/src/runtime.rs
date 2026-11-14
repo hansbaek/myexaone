@@ -83,6 +83,7 @@ pub fn ensure(log: &mut dyn FnMut(&str)) -> Result<Runtime> {
     fs::create_dir_all(&rt.dir)
         .with_context(|| format!("폴더를 만들 수 없습니다: {}", rt.dir.display()))?;
     fs::write(rt.config_file(), assets::GATEWAY_CONFIG)?;
+    fs::write(rt.dir.join("usage_logger.py"), assets::USAGE_LOGGER)?;
 
     if rt.is_installed() {
         return Ok(rt);

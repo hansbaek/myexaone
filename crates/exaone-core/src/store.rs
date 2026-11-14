@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::paths;
 
 pub struct Store {
-    conn: Connection,
+    pub(crate) conn: Connection,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -122,6 +122,7 @@ impl Store {
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         conn.execute_batch(SCHEMA)?;
         migrate(&conn)?;
+        crate::usage::init(&conn)?;
         Ok(Self { conn })
     }
 

@@ -15,15 +15,22 @@ pub struct GatewayConfig {
     pub api_base: String,
     pub api_key: String,
     pub master_key: String,
+    /// 요청마다 사용 기록(JSON 한 줄)을 남길 파일
+    pub usage_log: Option<std::path::PathBuf>,
 }
 
 impl GatewayConfig {
     pub fn new(settings: &Settings, api_key: String, master_key: String) -> Self {
+        let usage_log = crate::usage::log_file().ok();
+        if let Some(dir) = usage_log.as_ref().and_then(|p| p.parent()) {
+            let _ = std::fs::create_dir_all(dir);
+        }
         Self {
             port: settings.gateway_port,
             api_base: settings.api_base.clone(),
             api_key,
             master_key,
+            usage_log,
         }
     }
 }
@@ -42,6 +49,9 @@ pub fn command(rt: &Runtime, cfg: &GatewayConfig) -> Command {
         .env("PYTHONIOENCODING", "utf-8")
         // 사용 통계 등 외부 전송을 끈다.
         .env("LITELLM_TELEMETRY", "False");
+    if let Some(p) = &cfg.usage_log {
+        cmd.env("EXAONE_USAGE_LOG", p);
+    }
     cmd
 }
 
@@ -141,6 +151,7 @@ mod tests {
             api_base: "http://x/v1".into(),
             api_key: "k".into(),
             master_key: "m".into(),
+            usage_log: Some("u.jsonl".into()),
         };
         let cmd = command(&rt, &cfg);
         let args: Vec<_> = cmd
@@ -159,6 +170,7 @@ mod tests {
             })
             .collect();
         assert!(env.contains(&("PYTHONUTF8".into(), Some("1".into()))));
+        assert!(env.contains(&("EXAONE_USAGE_LOG".into(), Some("u.jsonl".into()))));
         assert!(env.contains(&("EXAONE_API_BASE".into(), Some("http://x/v1".into()))));
     }
 

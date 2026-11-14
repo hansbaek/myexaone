@@ -22,6 +22,7 @@ pub mod runtime;
 pub mod secrets;
 pub mod settings;
 pub mod store;
+pub mod usage;
 
 /// 게이트웨이에 등록된 모델 이름 (gateway/config.yaml 의 model_name).
 pub const GATEWAY_MODEL: &str = "k-exaone";
