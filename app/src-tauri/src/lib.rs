@@ -226,6 +226,23 @@ fn home_dir() -> Option<String> {
     std::env::home_dir().map(|p| p.display().to_string())
 }
 
+/// 로그인할 때 자동으로 켜지는지
+#[tauri::command(async)]
+fn autostart_get(app: AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command(async)]
+fn autostart_set(app: AppHandle, on: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let al = app.autolaunch();
+    if on { al.enable() } else { al.disable() }.map_err(|e| e.to_string())
+}
+
+/// 로그인 때 자동으로 켜질 때는 창 없이 트레이로만 시작한다.
+const HIDDEN_ARG: &str = "--hidden";
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -283,8 +300,16 @@ pub fn run() {
     let sessions_exit = sessions.clone();
     let chat_state = Arc::new(chat::ChatState::default());
     let app = tauri::Builder::default()
+        // 이미 떠 있으면 새로 띄우지 않고 기존 창을 앞으로 가져온다 (반드시 첫 플러그인).
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_main(app)
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![HIDDEN_ARG]),
+        ))
         .manage(mgr.clone())
         .manage(sessions)
         .manage(chat_state)
@@ -314,10 +339,16 @@ pub fn run() {
             usage_summary,
             mcp_info,
             mcp_register,
-            mcp_unregister
+            mcp_unregister,
+            autostart_get,
+            autostart_set
         ])
         .setup(|app| {
             build_tray(app.handle())?;
+            // 창은 숨긴 채로 만들어진다 (tauri.conf.json). 자동 실행이 아니면 바로 보여 준다.
+            if !std::env::args().any(|a| a == HIDDEN_ARG) {
+                show_main(app.handle());
+            }
             // 키가 있으면 앱을 켤 때 게이트웨이도 같이 켠다.
             let mgr = app.state::<Shared>().inner().clone();
             std::thread::spawn(move || {

@@ -16,7 +16,7 @@ x-exaone: &exaone
   extra_body:
     chat_template_kwargs:
       preserve_thinking: true
-  # 문서의 예시 한도(분당 60회)에 맞춘 보수적 값. bin/verify-api 결과를 보고 조정하세요.
+  # 실제 응답 헤더의 한도(초당 1회, 분당 60회)와 같은 값. `exaone verify` 로 확인할 수 있다.
   # EXAONE 문서에 없는 OpenAI/Anthropic 전용 파라미터는 보내지 않습니다.
   additional_drop_params: ["prompt_cache_key", "prompt_cache_retention", "store", "include", "metadata", "user", "safety_identifier", "service_tier", "web_search_options"]
   rpm: 60

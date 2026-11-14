@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { api, Check, LogLine, Phase, Status } from "./api";
 import Sessions from "./Sessions";
 import Chat from "./Chat";
@@ -249,6 +250,8 @@ function Settings({ status, refresh }: { status: Status; refresh: () => Promise<
         <p className="hint">키를 바꾼 뒤에는 게이트웨이를 껐다 켜야 새 키가 적용됩니다.</p>
       </section>
 
+      <StartupSettings />
+
       <ImeSettings />
 
       <h2>정보</h2>
@@ -305,6 +308,37 @@ function ImeSettings() {
           입력 진단 기록 (키·조합 이벤트를 파일에 남깁니다. 문제를 알릴 때만 켜세요)
         </label>
         {debug && <p className="hint">기록 위치: <code>{path}</code></p>}
+      </section>
+    </>
+  );
+}
+
+function StartupSettings() {
+  const inTauri = "__TAURI_INTERNALS__" in window;
+  const [on, setOn] = useState<boolean | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!inTauri) return setOn(false);
+    invoke<boolean>("autostart_get").then(setOn, (e) => setError(String(e)));
+  }, [inTauri]);
+  const toggle = async (v: boolean) => {
+    setError("");
+    try {
+      if (inTauri) await invoke("autostart_set", { on: v });
+      setOn(v);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  return (
+    <>
+      <h2>시작</h2>
+      <section className="card">
+        <label className="check-row first">
+          <input type="checkbox" checked={!!on} disabled={on === null} onChange={(e) => toggle(e.target.checked)} />
+          로그인할 때 자동으로 켜기 (창 없이 메뉴 막대·알림 영역에서 시작하고, 게이트웨이도 함께 켭니다)
+        </label>
+        {error && <p className="error">{error}</p>}
       </section>
     </>
   );

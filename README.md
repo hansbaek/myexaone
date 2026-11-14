@@ -1,143 +1,134 @@
-# EXAONE 게이트웨이
+# EXAONE Studio
 
-LG K-EXAONE 2.5 API를 Claude Code, Codex CLI, Antigravity에서 쓰기 위한 로컬 구성입니다.
+LG K-EXAONE 2.5를 Claude Code, Codex, Antigravity에서 쓰게 해 주는 macOS·Windows 앱과 명령줄 도구입니다.
 
-EXAONE은 OpenAI Chat Completions 형식(`/v1/chat/completions`)만 제공합니다. Claude Code는 Anthropic Messages, Codex는 OpenAI Responses 형식을 요구하므로, 로컬 LiteLLM 게이트웨이가 중간에서 변환합니다. Antigravity는 메인 모델을 바꿀 수 없어 MCP 도구로 연결합니다.
+EXAONE API는 OpenAI Chat Completions 형식(`/v1/chat/completions`)만 제공합니다. Claude Code는 Anthropic Messages, Codex는 OpenAI Responses 형식을 쓰므로, 이 컴퓨터에서 도는 LiteLLM 게이트웨이가 중간에서 변환합니다. 메인 모델을 바꿀 수 없는 도구(Antigravity 등)에는 EXAONE을 `exaone_chat` MCP 도구로 붙입니다.
 
 ```
 Claude Code ── /v1/messages ──┐
-Codex CLI ──── /v1/responses ─┼─ 게이트웨이(127.0.0.1:4000) ── /v1/chat/completions ── api.exaone.ai
-그 밖의 도구 ─ /v1/chat/... ──┘
-Antigravity ── MCP(exaone_chat) ─────────────────────────────────────────────────────── api.exaone.ai
+Codex ──────── /v1/responses ─┼─ 게이트웨이(127.0.0.1:4000) ── /v1/chat/completions ── api.exaone.ai
+대화 창 ────── /v1/chat/... ──┘
+Antigravity 등 ── MCP(exaone_chat) ─────────────────────────────────────────────────── api.exaone.ai
 ```
 
-## 데스크톱 앱 (EXAONE Studio)
+## 설치
 
-게이트웨이를 켜고 끄는 일을 앱이 대신합니다. 트레이(메뉴 막대)에 상주하며, 창을 닫아도 게이트웨이는 계속 돕니다.
+[Releases](https://github.com/hansbaek/myexaone/releases)에서 받습니다.
 
-- 앱을 켜면 게이트웨이가 자동으로 켜지고, 앱을 종료하면 함께 꺼집니다.
-- API 키는 설정 화면에서 입력합니다(OS 키 저장소에 저장).
-- uv가 앱에 들어 있어, 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 설치합니다.
-- 로그와 진단을 화면에서 볼 수 있습니다.
-- 사용량 탭에서 게이트웨이를 거친 요청(Claude Code·Codex 세션, 대화 창)의 출처별·날짜별 토큰, 서버 혼잡(429) 비율, 평균 응답 시간을 봅니다. 기록에는 질문·답변 내용이 들어가지 않습니다.
-- 도구 연결 탭에서 Claude Code·Codex에 `exaone_chat` MCP 도구를 버튼 하나로 등록·해제합니다. 앱 실행 파일이 `mcp` 인자를 받으면 MCP 서버로 동작하므로 따로 설치할 것이 없습니다. Antigravity 등에 붙여 넣을 설정도 보여 줍니다.
-- 대화 탭에서 EXAONE과 바로 대화합니다. 답변은 스트리밍으로 오고, 추론 과정은 접어서 보여 줍니다. 대화 기록은 데이터 폴더의 `studio.db`(SQLite)에만 저장됩니다.
+| 파일 | 대상 |
+|---|---|
+| `EXAONE Studio_*_aarch64.dmg` | macOS (Apple Silicon) |
+| `EXAONE Studio_*_x64-setup.exe` 또는 `.msi` | Windows |
+| `exaone-*.tar.gz` / `.zip` | 명령줄 도구 (선택) |
 
-빌드는 `app/`에서 합니다. 결과물은 `app/src-tauri/target/release/bundle/`에 생깁니다.
+앱만 설치하면 됩니다. 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 내려받습니다. Claude Code·Codex를 EXAONE으로 쓰려면 그 도구들은 따로 설치돼 있어야 합니다.
 
-```bash
-cd app && npm install && npm run tauri build
-```
+서명되지 않은 앱이라 처음 열 때 경고가 나옵니다.
 
-세션 탭에서 도구(Claude Code 또는 Codex)와 작업 폴더를 고르면 앱 안 터미널에서 바로 실행됩니다. 탭을 여러 개 열 수 있고, 최근 폴더를 기억합니다. 터미널에서 `exaone claude`, `exaone codex`로 실행해도 됩니다.
+- **macOS**: 앱을 응용 프로그램 폴더로 옮긴 뒤 우클릭 → 열기. 그래도 열리지 않으면 아래 명령을 실행합니다.
 
-## 명령줄 도구 설치 (macOS·Windows)
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/EXAONE Studio.app"
+  ```
 
-`exaone` 명령 하나로 게이트웨이와 Claude Code·Codex를 다룹니다. 빌드하려면 Rust와 [uv](https://docs.astral.sh/uv/)가 필요합니다.
+- **Windows**: SmartScreen 창에서 "추가 정보" → "실행"
 
-```bash
-cargo build --release
-```
+## 사용
 
-실행 파일은 `target/release/exaone`(Windows는 `exaone.exe`)입니다. PATH에 있는 폴더로 복사해 두면 어디서나 `exaone`으로 실행할 수 있습니다. GitHub Actions 실행 결과의 `exaone-cli-macOS`, `exaone-cli-Windows`에서 빌드된 파일을 받을 수도 있습니다.
+1. 앱을 열고 **설정**에서 EXAONE API 키를 넣습니다. 키는 OS 키 저장소(macOS 키체인, Windows 자격 증명 관리자)에만 저장됩니다.
+2. **대시보드**에서 게이트웨이가 "실행 중"이 되면 준비 끝입니다. 이후에는 앱을 켜면 게이트웨이도 자동으로 켜집니다.
 
-처음 한 번, 실행 환경(LiteLLM)을 설치하고 API 키를 저장합니다. 키는 OS 키 저장소(macOS 키체인, Windows 자격 증명 관리자)에 들어가며 화면에 표시되지 않습니다.
+| 탭 | 하는 일 |
+|---|---|
+| 대시보드 | 게이트웨이 켜기·끄기, 진단 (키, 실행 환경, 포트, Claude 설정 충돌, 예전 설정으로 실행 중인지 등) |
+| 대화 | EXAONE과 바로 대화. 추론 과정 접기, 대기·생성 시간 표시, 서버 혼잡 시 자동 재시도 |
+| 세션 | 작업 폴더를 고르면 앱 안 터미널에서 Claude Code나 Codex를 EXAONE으로 실행 |
+| 사용량 | 출처별(Claude Code·Codex·대화 창)·날짜별 토큰, 서버 혼잡(429) 비율, 평균 응답 시간 |
+| 도구 연결 | Claude Code·Codex에 `exaone_chat` MCP 도구 등록·해제, Antigravity 등에 붙여 넣을 설정 |
+| 설정 | API 키, 로그인 시 자동 실행, 한글 입력 처리 방식 |
+
+- 창을 닫아도 앱은 메뉴 막대(Windows는 알림 영역)에 남아 게이트웨이를 계속 돌립니다. 완전히 끄려면 아이콘 메뉴의 "종료"를 누릅니다.
+- 평소의 `claude`, `codex` 설정과 로그인은 바뀌지 않습니다. EXAONE은 앱의 세션 탭이나 `exaone claude`로 실행할 때만 씁니다.
+- 앱을 다른 폴더로 옮겼다면 도구 연결 탭에서 "다시 등록"을 누르세요.
+
+## 명령줄 도구 `exaone`
+
+앱 없이 터미널에서만 쓸 때, 또는 앱이 띄운 게이트웨이에 터미널에서 붙을 때 씁니다.
 
 ```bash
 exaone setup
 ```
 
-실제 API가 도구 호출을 지원하는지 확인하려면 다음을 실행합니다. 2026-11-13 기준 10개 항목이 모두 통과했습니다.
-
-```bash
-exaone verify
-```
-
-## 사용
-
-게이트웨이를 터미널 하나에 띄워 둡니다(Ctrl+C로 종료).
-
 ```bash
 exaone gateway
 ```
 
-다른 터미널에서 작업할 폴더로 이동한 뒤 실행합니다. 뒤의 인자는 원래 명령에 그대로 전달됩니다.
-
 ```bash
 exaone claude
-```
-
-```bash
-exaone codex
-```
-
-평소의 `claude`, `codex` 설정과 로그인은 바뀌지 않습니다. 연결이 안 되면 먼저 진단을 실행하세요. 실행 환경, 키, 게이트웨이, `claude`·`codex` 위치, Claude 설정 충돌을 한 번에 보여 줍니다.
-
-```bash
-exaone doctor
 ```
 
 | 명령 | 하는 일 |
 |---|---|
 | `exaone setup` | 실행 환경 설치, 키가 없으면 입력받기 |
 | `exaone key set` / `status` / `delete` | API 키 관리 |
-| `exaone gateway [--port N]` | 게이트웨이 실행 |
-| `exaone claude …`, `exaone codex …` | EXAONE으로 실행 |
+| `exaone gateway [--port N]` | 게이트웨이 실행 (앱이 이미 띄웠으면 그대로 씀) |
+| `exaone claude …`, `exaone codex …` | EXAONE으로 실행. 뒤의 인자는 원래 명령에 전달 |
 | `exaone mcp` | `exaone_chat` MCP 서버 (stdio) |
-| `exaone verify` | 실제 API 기능 점검 |
+| `exaone verify` | 실제 API의 도구 호출·구조화 출력·한도 점검 |
 | `exaone doctor` | 환경 진단 |
 
-데이터 폴더는 macOS `~/Library/Application Support/EXAONE Studio`, Windows `%APPDATA%\EXAONE Studio`입니다. 설정(`settings.json`의 `gateway_port`, `api_base`)과 실행 환경이 여기 들어갑니다.
+데이터 폴더는 macOS `~/Library/Application Support/EXAONE Studio`, Windows `%APPDATA%\EXAONE Studio`입니다. 실행 환경, 설정(`settings.json`), 대화·사용량 저장소(`studio.db`), 로그가 여기 들어갑니다.
 
-### MCP (Antigravity 등)
+## 개발
 
-MCP 클라이언트 설정에 아래를 추가합니다. 게이트웨이를 띄울 필요는 없습니다.
+필요한 것: Rust, Node.js 22 이상, [uv](https://docs.astral.sh/uv/).
 
-```json
-{
-  "mcpServers": {
-    "exaone": { "command": "exaone", "args": ["mcp"] }
-  }
-}
+```bash
+cargo test --workspace
 ```
 
-PATH에 `exaone`이 없으면 `command`에 실행 파일의 절대 경로를 씁니다. Claude Code에는 `claude mcp add --scope user exaone -- exaone mcp`로 등록합니다.
+```bash
+cargo build --release
+```
 
-### 기존 맥 전용 스크립트
+```bash
+cd app && npm install && npm run tauri build
+```
 
-`bin/` 아래 bash 스크립트(`bin/gateway`, `bin/exaone-claude` 등)와 `mcp/exaone_mcp.py`도 그대로 동작합니다. 이 스크립트들은 `.env`와 저장소 안의 `.venv`를 씁니다. 같은 일을 `exaone` 명령이 대신하므로 나중에 정리할 예정입니다.
+키 없이 변환 경로를 시험할 수 있습니다. 가짜 EXAONE 서버(`tests/mock_upstream.py`)를 씁니다.
 
-## 파일
+```bash
+bash tests/e2e_cli.sh
+```
 
-| 파일 | 역할 |
+GitHub Actions(`build`)가 push 마다 macOS·Windows에서 단위 테스트, 게이트웨이 점검, `exaone` 종단 간 시험(실제 Claude Code·Codex 포함), 앱 빌드를 돌립니다.
+
+### 릴리스
+
+`app/src-tauri/tauri.conf.json`의 `version`을 올리고 같은 버전의 태그를 올리면, `release` 워크플로가 설치 파일과 명령줄 도구를 빌드해 GitHub Release를 만듭니다.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+### 구조
+
+| 경로 | 역할 |
 |---|---|
-| `crates/exaone-core` | 핵심 로직: 실행 환경, 키 저장소, 게이트웨이, Claude·Codex 실행, MCP, 진단 |
+| `crates/exaone-core` | 핵심 로직: 실행 환경(uv·LiteLLM), 키 저장소, 게이트웨이, Claude·Codex 실행, PTY, 대화·사용량 저장소, MCP 서버·등록, 진단 |
 | `crates/exaone-cli` | `exaone` 명령 |
-| `app/` | 데스크톱 앱 (Tauri 2, 개발 중) |
-| `gateway/config.yaml` | LiteLLM 설정. 모델 등록, 권장 샘플링 값, 재시도, 버릴 파라미터 |
-| `gateway/usage_logger.py` | 요청마다 사용 기록(출처, 토큰, 시간, 재시도 횟수)을 남기는 LiteLLM 콜백 |
-| `bin/set-key` | API 키를 화면 표시 없이 `.env`에 저장 |
-| `bin/gateway` | 게이트웨이 실행 |
-| `bin/exaone-claude`, `bin/exaone-codex` | 각 도구를 게이트웨이에 붙여 실행 |
-| `bin/exaone-mcp`, `mcp/exaone_mcp.py` | MCP 서버 |
-| `bin/verify-api`, `tests/verify_api.py` | 실제 API 기능 점검 |
-| `tests/mock_upstream.py` | 키 없이 변환 경로를 시험하는 가짜 EXAONE 서버 |
-| `tests/smoke_gateway.py` | 게이트웨이 변환 경로 점검 (OS 공용) |
-| `tests/e2e_cli.sh` | `exaone` 명령 종단 간 시험 (CI) |
+| `app/` | 데스크톱 앱 (Tauri 2 + React). `src-tauri`는 core를 화면에 잇는 부분 |
+| `gateway/config.yaml` | LiteLLM 설정: 모델, 권장 샘플링 값, 재시도, 버릴 파라미터 |
+| `gateway/usage_logger.py` | 요청마다 사용 기록(출처, 토큰, 시간, 재시도 횟수)을 남기는 LiteLLM 콜백. 내용은 남기지 않음 |
+| `tests/` | 가짜 EXAONE 서버, 게이트웨이 점검, 종단 간 시험, 실제 API 점검, 한글 입력 재생 자료 |
 
-## 설정에서 알아둘 점
+## 알아둘 점
 
-- `gateway/config.yaml`의 제공자는 `hosted_vllm/`이고 `use_chat_completions_api: true`가 켜져 있습니다. `openai/`로 바꾸면 LiteLLM이 업스트림에 `/v1/responses`로 보내 실패합니다.
-- Claude Code와 Codex가 `claude-*`, `gpt-*` 이름으로 보내는 요청도 전부 EXAONE으로 갑니다.
-- `rpm: 60`은 실제 응답 헤더(초당 1회, 분당 60회, 하루 86,400회)와 같은 값입니다.
-- 개인 한도와 별개로, 서버 전체가 붐비면 `service is busy, too many concurrent requests(600)` 429가 옵니다. 게이트웨이는 6번까지 재시도하지만 붐비는 시간대에는 응답이 느려지거나 실패할 수 있습니다.
-- `reasoning_effort`는 도구가 보내는 값이 그대로 전달됩니다. API 문서는 `low`/`high`/`max`만 적고 있어, 실제로는 `medium`도 받습니다(`exaone verify`로 확인).
-
-## 한계
-
-- Claude Code는 셸 환경 변수보다 `~/.claude/settings.json`의 `env` 값을 우선합니다. 그래서 `exaone claude`는 연결 설정을 `--settings`로 넘깁니다. `exaone doctor`가 이 충돌을 알려 줍니다. 그 파일에 다른 도구가 넣은 `ANTHROPIC_BASE_URL`이 있어도 이 래퍼는 게이트웨이로 연결되지만, 평소의 `claude` 명령은 그 주소로 연결됩니다.
-- Claude Code 시작 시 `[claude-code:unrecognized_model]` 한 줄이 출력됩니다. 모르는 모델 이름이라 나오는 안내이며 동작에는 영향이 없습니다.
-- 간단한 작업(파일 하나 작성 후 실행)에 Claude Code 약 40초, Codex 약 66초가 걸렸습니다.
-- K-EXAONE 2.5는 텍스트 전용이라 이미지 첨부와 스크린샷 기능은 동작하지 않습니다.
-- 추론을 끌 수 없어 짧은 호출도 느릴 수 있습니다.
-- 한도 상향을 위해 학습 활용에 동의하면 작업 중인 코드가 학습 데이터로 쓰일 수 있습니다.
+- **서버 혼잡**: 개인 한도(초당 1회, 분당 60회, 하루 86,400회)와 별개로, 서버 전체가 붐비면 `too many concurrent requests(600)` 429가 자주 옵니다. 게이트웨이가 6번까지 재시도하고 대화 창은 3번 더 시도하지만, 붐비는 시간에는 수십 초 걸리거나 실패할 수 있습니다.
+- **추론 강도**: 추론 강도(`reasoning_effort`)를 낮춰도 실제 차이는 추론 수십 토큰(1~2초) 정도입니다. 추론은 끌 수 없습니다.
+- **Codex 입력 토큰**: Codex는 요청마다 도구·플러그인 설명을 함께 보내서, 짧은 질문도 입력이 수만~십수만 토큰이 될 수 있습니다. 사용량 탭에서 확인할 수 있습니다.
+- **Claude 설정 우선순위**: Claude Code는 셸 환경 변수보다 `~/.claude/settings.json`의 `env`를 우선합니다. 그래서 EXAONE 연결 설정은 `--settings`로 넘깁니다. 그 파일에 다른 `ANTHROPIC_BASE_URL`이 있으면 진단이 알려 줍니다(앱·`exaone claude`는 영향 없음).
+- **모델 이름 안내 줄**: Claude Code 시작 시 `[claude-code:unrecognized_model]` 한 줄이 나옵니다. 동작에는 영향이 없습니다.
+- **이미지 불가**: K-EXAONE 2.5는 텍스트 전용이라 이미지 첨부는 동작하지 않습니다.
+- **학습 활용 동의**: 한도 상향을 위해 학습 활용에 동의하면 작업 중인 코드가 학습 데이터로 쓰일 수 있습니다.
+- **키체인 승인 창 (macOS)**: 서명되지 않은 앱을 새 버전으로 바꾸면, macOS가 키체인 접근을 다시 물을 수 있습니다. "항상 허용"을 누르면 됩니다.

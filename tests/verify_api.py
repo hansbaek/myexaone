@@ -1,7 +1,7 @@
 """EXAONE API가 코딩 에이전트에 필요한 기능을 실제로 지원하는지 확인한다.
 
 문서에 없는 항목(tools, tool_choice, response_format 등)을 직접 호출해 보고
-항목별로 통과/실패와 rate limit 헤더를 출력한다. bin/verify-api 로 실행.
+항목별로 통과/실패와 rate limit 헤더를 출력한다. `exaone verify` 로 실행.
 """
 import json
 import os

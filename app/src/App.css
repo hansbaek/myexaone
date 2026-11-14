@@ -301,3 +301,4 @@ button.ghost:hover:not(:disabled) { color: var(--text); }
 .snippet { position: relative; }
 .snippet pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; overflow-x: auto; user-select: text; }
 .snippet button { position: absolute; top: 8px; right: 8px; }
+.check-row.first { margin-top: 0; color: var(--text); }

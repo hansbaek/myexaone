@@ -1,0 +1,94 @@
+name: release
+
+# 버전 태그(v0.1.0 등)를 올리면 macOS·Windows 설치 파일과 exaone 명령을 빌드해
+# GitHub Release 에 올린다. 태그 버전은 app/src-tauri/tauri.conf.json 의 version 과 같아야 한다.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bundles: dmg
+            platform: macos-arm64
+          - os: windows-latest
+            bundles: nsis,msi
+            platform: windows-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version matches tag
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          have="$(node -p "require('./app/src-tauri/tauri.conf.json').version")"
+          if [ "$want" != "$have" ]; then
+            echo "태그 버전($want)과 tauri.conf.json 버전($have)이 다릅니다" >&2
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            app/src-tauri -> target
+      # 앱에 넣을 uv (npm run bundle-uv 가 복사한다)
+      - uses: astral-sh/setup-uv@v6
+      - name: Build app
+        working-directory: app
+        run: |
+          npm ci
+          npm run tauri build -- --bundles ${{ matrix.bundles }}
+      - name: Build exaone CLI
+        run: cargo build --release -p exaone-cli
+      - name: Collect files
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          b=app/src-tauri/target/release/bundle
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp "$b"/nsis/*.exe "$b"/msi/*.msi dist/
+            7z a "dist/exaone-$v-${{ matrix.platform }}.zip" ./target/release/exaone.exe
+          else
+            cp "$b"/dmg/*.dmg dist/
+            tar -czf "dist/exaone-$v-${{ matrix.platform }}.tar.gz" -C target/release exaone
+          fi
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "EXAONE Studio $GITHUB_REF_NAME" \
+            --notes-file .github/release-notes.md \
+            --generate-notes
