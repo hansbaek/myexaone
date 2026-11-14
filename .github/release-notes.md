@@ -2,9 +2,9 @@
 
 | 파일 | 대상 |
 |---|---|
-| `EXAONE Studio_*_aarch64.dmg` | macOS (Apple Silicon) 앱 |
-| `EXAONE Studio_*_x64-setup.exe` | Windows 앱 설치 프로그램 |
-| `EXAONE Studio_*_x64_en-US.msi` | Windows 앱 (MSI) |
+| `EXAONE.Studio_*_aarch64.dmg` | macOS (Apple Silicon) 앱 |
+| `EXAONE.Studio_*_x64-setup.exe` | Windows 앱 설치 프로그램 |
+| `EXAONE.Studio_*_x64_en-US.msi` | Windows 앱 (MSI) |
 | `exaone-*-macos-arm64.tar.gz`, `exaone-*-windows-x64.zip` | `exaone` 명령줄 도구 (선택) |
 
 앱만 설치하면 됩니다. 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 내려받아 설치합니다. Claude Code·Codex를 EXAONE으로 쓰려면 각 도구가 설치돼 있어야 합니다.

@@ -17,8 +17,8 @@ Antigravity 등 ── MCP(exaone_chat) ─────────────�
 
 | 파일 | 대상 |
 |---|---|
-| `EXAONE Studio_*_aarch64.dmg` | macOS (Apple Silicon) |
-| `EXAONE Studio_*_x64-setup.exe` 또는 `.msi` | Windows |
+| `EXAONE.Studio_*_aarch64.dmg` | macOS (Apple Silicon) |
+| `EXAONE.Studio_*_x64-setup.exe` 또는 `.msi` | Windows |
 | `exaone-*.tar.gz` / `.zip` | 명령줄 도구 (선택) |
 
 앱만 설치하면 됩니다. 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 내려받습니다. Claude Code·Codex를 EXAONE으로 쓰려면 그 도구들은 따로 설치돼 있어야 합니다.
