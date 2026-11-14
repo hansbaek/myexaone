@@ -56,6 +56,8 @@ export function isHangul(s: string): boolean {
 
 type Log = (line: string) => void;
 
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "Fn", "FnLock", "AltGraph", "Hyper", "Super", "OS"]);
+
 /** 조합 상태. DOM 과 분리해 두어 시험하기 쉽게 했다. */
 export class HangulBuffer {
   pending = "";
@@ -227,6 +229,8 @@ export function installIme(term: Terminal, rawSend: (data: string) => void, log?
   term.attachCustomKeyEventHandler((ev) => {
     if (ev.type !== "keydown") return !(composing || ev.isComposing || ev.keyCode === 229);
     if (composing || ev.isComposing || ev.keyCode === 229) return false;
+    // Shift 등 수정 키만 누른 것은 글자 입력의 일부다 (예: ㅆ = Shift+ㅅ). 조합을 확정하지 않는다.
+    if (MODIFIER_KEYS.has(ev.key)) return true;
     if (ev.key === "Backspace" && buf.backspace()) return false;
     // 다른 키(띄어쓰기, Enter, 방향키, Ctrl+C 등)를 누르면 조합 중인 글자를 먼저 확정한다.
     buf.flush();

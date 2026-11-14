@@ -1,0 +1,32 @@
+0 beforeinput isComposing=false inputType=insertText data="ㄴ"
+0 input isComposing=false inputType=insertText data="ㄴ"
+0 keydown key="ㄴ" code=KeyS keyCode=229 isComposing=false
+0 keyup key="ㄴ" code=KeyS keyCode=83 isComposing=false
+0 beforeinput isComposing=false inputType=insertReplacementText data="나"
+0 input isComposing=false inputType=insertReplacementText data="나"
+0 keydown key="ㅏ" code=KeyK keyCode=229 isComposing=false
+0 keyup key="ㅏ" code=KeyK keyCode=75 isComposing=false
+0 keydown key="Shift" code=ShiftRight keyCode=16 isComposing=false
+0 beforeinput isComposing=false inputType=insertReplacementText data="났"
+0 input isComposing=false inputType=insertReplacementText data="났"
+0 keydown key="ㅆ" code=KeyT keyCode=229 isComposing=false
+0 keyup key="ㅆ" code=KeyT keyCode=84 isComposing=false
+0 keyup key="Shift" code=ShiftRight keyCode=16 isComposing=false
+0 beforeinput isComposing=false inputType=insertReplacementText data="났"
+0 input isComposing=false inputType=insertReplacementText data="났"
+0 beforeinput isComposing=false inputType=insertText data="ㄷ"
+0 input isComposing=false inputType=insertText data="ㄷ"
+0 keydown key="ㄷ" code=KeyE keyCode=229 isComposing=false
+0 keyup key="ㄷ" code=KeyE keyCode=69 isComposing=false
+0 beforeinput isComposing=false inputType=insertReplacementText data="다"
+0 input isComposing=false inputType=insertReplacementText data="다"
+0 keydown key="ㅏ" code=KeyK keyCode=229 isComposing=false
+0 keyup key="ㅏ" code=KeyK keyCode=75 isComposing=false
+0 beforeinput isComposing=false inputType=insertReplacementText data="다"
+0 input isComposing=false inputType=insertReplacementText data="다"
+0 keydown key="." code=Period keyCode=190 isComposing=false
+0 keyup key="." code=Period keyCode=190 isComposing=false
+0 keydown key=" " code=Space keyCode=32 isComposing=false
+0 beforeinput isComposing=false inputType=insertText data=" "
+0 input isComposing=false inputType=insertText data=" "
+0 keyup key=" " code=Space keyCode=32 isComposing=false
