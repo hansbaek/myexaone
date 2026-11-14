@@ -73,7 +73,8 @@ pub fn run(settings: &Settings) -> Vec<Check> {
     });
 
     let port = settings.gateway_port;
-    out.push(if gateway::is_healthy(port) {
+    let healthy = gateway::is_healthy(port);
+    out.push(if healthy {
         check(
             "게이트웨이",
             Level::Ok,
@@ -91,6 +92,26 @@ pub fn run(settings: &Settings) -> Vec<Check> {
             Level::Warn,
             "꺼져 있음. `exaone gateway` 로 켜세요.",
         )
+    });
+
+    // 앱·명령을 새로 깔았는데 게이트웨이가 예전 설정으로 떠 있는 경우
+    if healthy && runtime::written_stamp().is_some_and(|s| s != runtime::config_stamp()) {
+        out.push(check(
+            "게이트웨이 설정",
+            Level::Warn,
+            "예전 설정으로 실행 중입니다. 게이트웨이를 껐다 켜면 새 설정(사용량 기록 등)이 적용됩니다.",
+        ));
+    }
+
+    out.push(match crate::usage::log_file() {
+        Ok(p) if p.exists() => check("사용량 기록", Level::Ok, p.display().to_string()),
+        Ok(_) if healthy => check(
+            "사용량 기록",
+            Level::Warn,
+            "아직 기록이 없습니다. 요청을 보내면 생깁니다. 계속 없으면 게이트웨이를 껐다 켜세요.",
+        ),
+        Ok(_) => check("사용량 기록", Level::Ok, "게이트웨이를 켜면 기록합니다"),
+        Err(e) => check("사용량 기록", Level::Fail, e.to_string()),
     });
 
     for name in ["claude", "codex"] {

@@ -13,6 +13,7 @@ pub mod chat;
 pub mod doctor;
 pub mod exaone_api;
 pub mod gateway;
+pub mod integrations;
 pub mod launch;
 pub mod mcp;
 pub mod paths;

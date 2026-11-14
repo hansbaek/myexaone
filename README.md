@@ -20,6 +20,7 @@ Antigravity ── MCP(exaone_chat) ──────────────�
 - uv가 앱에 들어 있어, 처음 켤 때 실행 환경(LiteLLM, 약 500MB)을 스스로 설치합니다.
 - 로그와 진단을 화면에서 볼 수 있습니다.
 - 사용량 탭에서 게이트웨이를 거친 요청(Claude Code·Codex 세션, 대화 창)의 출처별·날짜별 토큰, 서버 혼잡(429) 비율, 평균 응답 시간을 봅니다. 기록에는 질문·답변 내용이 들어가지 않습니다.
+- 도구 연결 탭에서 Claude Code·Codex에 `exaone_chat` MCP 도구를 버튼 하나로 등록·해제합니다. 앱 실행 파일이 `mcp` 인자를 받으면 MCP 서버로 동작하므로 따로 설치할 것이 없습니다. Antigravity 등에 붙여 넣을 설정도 보여 줍니다.
 - 대화 탭에서 EXAONE과 바로 대화합니다. 답변은 스트리밍으로 오고, 추론 과정은 접어서 보여 줍니다. 대화 기록은 데이터 폴더의 `studio.db`(SQLite)에만 저장됩니다.
 
 빌드는 `app/`에서 합니다. 결과물은 `app/src-tauri/target/release/bundle/`에 생깁니다.

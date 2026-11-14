@@ -286,3 +286,18 @@ button.ghost:hover:not(:disabled) { color: var(--text); }
 .usage-table tr + tr td { border-top: 1px solid var(--line); }
 .muted { color: var(--muted); }
 .pad { padding: 12px 4px; margin: 0; }
+
+/* ── 도구 연결 ─────────────────────────────── */
+.connections > * { flex-shrink: 0; }
+.intro { max-width: 680px; margin: 0 0 16px; }
+.tool-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.tool-main { min-width: 0; }
+.tool-name { font-weight: 600; font-size: 15px; }
+.tool-state { color: var(--muted); display: flex; gap: 8px; align-items: baseline; margin-top: 2px; }
+.tool-state.ok .mark { color: var(--ok); }
+.tool-state.warn { color: var(--warn); }
+.tool-actions { display: flex; gap: 8px; flex: none; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.snippet { position: relative; }
+.snippet pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; overflow-x: auto; user-select: text; }
+.snippet button { position: absolute; top: 8px; right: 8px; }

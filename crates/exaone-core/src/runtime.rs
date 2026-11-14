@@ -13,6 +13,8 @@ use crate::{assets, launch, paths};
 
 const PYTHON_VERSION: &str = "3.12";
 const MARKER: &str = ".requirements.sha256";
+/// 마지막으로 게이트웨이용 설정을 쓴 때의 설정 지문
+const STAMP: &str = ".config.sha256";
 
 /// 설치된 실행 환경의 파일 위치.
 #[derive(Debug, Clone)]
@@ -47,6 +49,22 @@ impl Runtime {
             && fs::read_to_string(self.dir.join(MARKER))
                 .is_ok_and(|h| h.trim() == requirements_hash())
     }
+}
+
+/// 이 프로그램에 들어 있는 게이트웨이 설정(config.yaml + 사용 기록 콜백)의 지문.
+pub fn config_stamp() -> String {
+    let mut h = Sha256::new();
+    h.update(assets::GATEWAY_CONFIG.as_bytes());
+    h.update(assets::USAGE_LOGGER.as_bytes());
+    h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// 실행 환경에 마지막으로 쓴 설정 지문 (게이트웨이를 마지막으로 띄운 때의 것).
+pub fn written_stamp() -> Option<String> {
+    let rt = Runtime::locate().ok()?;
+    fs::read_to_string(rt.dir.join(STAMP))
+        .ok()
+        .map(|s| s.trim().to_string())
 }
 
 fn requirements_hash() -> String {
@@ -84,6 +102,7 @@ pub fn ensure(log: &mut dyn FnMut(&str)) -> Result<Runtime> {
         .with_context(|| format!("폴더를 만들 수 없습니다: {}", rt.dir.display()))?;
     fs::write(rt.config_file(), assets::GATEWAY_CONFIG)?;
     fs::write(rt.dir.join("usage_logger.py"), assets::USAGE_LOGGER)?;
+    fs::write(rt.dir.join(STAMP), config_stamp())?;
 
     if rt.is_installed() {
         return Ok(rt);

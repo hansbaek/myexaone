@@ -3,11 +3,12 @@ import { api, Check, LogLine, Phase, Status } from "./api";
 import Sessions from "./Sessions";
 import Chat from "./Chat";
 import Usage from "./Usage";
+import Connections from "./Connections";
 import { imeDebug, imeMode, setImeDebug, setImeMode } from "./ime";
 import { sessions } from "./sessionsApi";
 import "./App.css";
 
-type Tab = "home" | "chat" | "sessions" | "usage" | "logs" | "settings";
+type Tab = "home" | "chat" | "sessions" | "usage" | "connect" | "logs" | "settings";
 
 const PHASE_LABEL: Record<Phase, string> = {
   stopped: "꺼짐",
@@ -50,6 +51,7 @@ export default function App() {
         <button className={tab === "chat" ? "on" : ""} onClick={() => setTab("chat")}>대화</button>
         <button className={tab === "sessions" ? "on" : ""} onClick={() => setTab("sessions")}>세션</button>
         <button className={tab === "usage" ? "on" : ""} onClick={() => setTab("usage")}>사용량</button>
+        <button className={tab === "connect" ? "on" : ""} onClick={() => setTab("connect")}>도구 연결</button>
         <button className={tab === "logs" ? "on" : ""} onClick={() => setTab("logs")}>로그</button>
         <button className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>설정</button>
         <div className="side-foot">
@@ -61,7 +63,8 @@ export default function App() {
       <Sessions visible={tab === "sessions"} gatewayReady={status.phase === "running" || status.phase === "external"} />
       <Chat visible={tab === "chat"} gatewayReady={status.phase === "running" || status.phase === "external"} />
       <Usage visible={tab === "usage"} />
-      <main style={{ display: tab === "sessions" || tab === "chat" || tab === "usage" ? "none" : undefined }}>
+      <Connections visible={tab === "connect"} />
+      <main style={{ display: ["sessions", "chat", "usage", "connect"].includes(tab) ? "none" : undefined }}>
         {tab === "home" && <Home status={status} refresh={refresh} goSettings={() => setTab("settings")} />}
         {tab === "logs" && <Logs logs={logs} />}
         {tab === "settings" && <Settings status={status} refresh={refresh} />}

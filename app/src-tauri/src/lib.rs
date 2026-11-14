@@ -165,6 +165,53 @@ fn ime_log_path() -> Result<String, String> {
     ime_log_file().map(|p| p.display().to_string())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct McpInfo {
+    /// 등록할 명령 (이 앱 실행 파일 + "mcp")
+    command: Vec<String>,
+    /// 설정 파일에 붙여 넣을 JSON (Antigravity 등)
+    snippet: String,
+    claude: exaone_core::integrations::McpStatus,
+    codex: exaone_core::integrations::McpStatus,
+}
+
+fn mcp_command() -> Result<Vec<String>, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    Ok(vec![exe.display().to_string(), "mcp".into()])
+}
+
+fn client(name: &str) -> Result<exaone_core::integrations::Client, String> {
+    match name {
+        "claude" => Ok(exaone_core::integrations::Client::Claude),
+        "codex" => Ok(exaone_core::integrations::Client::Codex),
+        other => Err(format!("알 수 없는 도구: {other}")),
+    }
+}
+
+#[tauri::command(async)]
+fn mcp_info() -> Result<McpInfo, String> {
+    use exaone_core::integrations::{self as ig, Client};
+    let command = mcp_command()?;
+    Ok(McpInfo {
+        snippet: ig::mcp_json_snippet(&command),
+        claude: ig::status(Client::Claude, &command),
+        codex: ig::status(Client::Codex, &command),
+        command,
+    })
+}
+
+#[tauri::command(async)]
+fn mcp_register(tool: String) -> Result<(), String> {
+    exaone_core::integrations::register(client(&tool)?, &mcp_command()?)
+        .map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command(async)]
+fn mcp_unregister(tool: String) -> Result<(), String> {
+    exaone_core::integrations::unregister(client(&tool)?).map_err(|e| format!("{e:#}"))
+}
+
 /// 게이트웨이 사용 기록을 저장소로 옮긴 뒤 `since`(유닉스 초) 이후를 집계한다.
 #[tauri::command(async)]
 fn usage_summary(since: f64) -> Result<exaone_core::usage::Summary, String> {
@@ -216,6 +263,19 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// MCP 서버 모드 (표준 입출력). 종료 코드를 돌려준다.
+pub fn run_mcp() -> i32 {
+    let settings = Settings::load().unwrap_or_default();
+    let key = secrets::api_key().ok().flatten().map(|(k, _)| k);
+    match exaone_core::mcp::run_stdio(&settings.api_base, key) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("MCP 서버 오류: {e:#}");
+            1
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mgr: Shared = Arc::new(Manager::default());
@@ -251,7 +311,10 @@ pub fn run() {
             chat::chat_stop,
             chat::chat_running,
             chat::chat_send,
-            usage_summary
+            usage_summary,
+            mcp_info,
+            mcp_register,
+            mcp_unregister
         ])
         .setup(|app| {
             build_tray(app.handle())?;
