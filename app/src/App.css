@@ -241,3 +241,6 @@ button.ghost:hover:not(:disabled) { color: var(--text); }
 .composer textarea { width: 100%; border: 0; background: transparent; color: var(--text); font: inherit; resize: none; outline: none; padding: 2px 0; max-height: 200px; }
 .composer-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 .small-seg button { padding: 2px 10px; font-size: 12.5px; }
+.effort { display: flex; align-items: center; gap: 8px; }
+.effort-label { color: var(--muted); font-size: 12.5px; }
+.thinking .retry { color: var(--warn); }

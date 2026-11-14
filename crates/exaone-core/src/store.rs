@@ -34,6 +34,12 @@ pub struct Message {
     pub completion_tokens: Option<i64>,
     pub reasoning_tokens: Option<i64>,
     pub error: Option<String>,
+    /// 보낸 뒤 첫 글자(추론 포함)가 오기까지 걸린 시간
+    pub first_token_ms: Option<i64>,
+    /// 보낸 뒤 답변이 끝나기까지 걸린 시간
+    pub total_ms: Option<i64>,
+    /// 서버 혼잡(429)으로 다시 시도한 횟수
+    pub retries: Option<i64>,
     pub created_at: i64,
 }
 
@@ -46,6 +52,9 @@ pub struct AssistantReply {
     pub completion_tokens: Option<i64>,
     pub reasoning_tokens: Option<i64>,
     pub error: Option<String>,
+    pub first_token_ms: Option<i64>,
+    pub total_ms: Option<i64>,
+    pub retries: Option<i64>,
 }
 
 fn now() -> i64 {
@@ -77,6 +86,20 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS messages_by_conversation ON messages(conversation_id, id);
 ";
 
+/// 나중에 더한 열을 예전 저장소에도 추가한다.
+fn migrate(conn: &Connection) -> Result<()> {
+    let mut st = conn.prepare("PRAGMA table_info(messages)")?;
+    let cols: Vec<String> = st
+        .query_map([], |r| r.get(1))?
+        .collect::<rusqlite::Result<_>>()?;
+    for col in ["first_token_ms", "total_ms", "retries"] {
+        if !cols.iter().any(|c| c == col) {
+            conn.execute_batch(&format!("ALTER TABLE messages ADD COLUMN {col} INTEGER"))?;
+        }
+    }
+    Ok(())
+}
+
 impl Store {
     /// 데이터 폴더의 저장소를 연다 (없으면 만든다).
     pub fn open_default() -> Result<Self> {
@@ -98,6 +121,7 @@ impl Store {
     fn init(conn: Connection) -> Result<Self> {
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         conn.execute_batch(SCHEMA)?;
+        migrate(&conn)?;
         Ok(Self { conn })
     }
 
@@ -148,7 +172,7 @@ impl Store {
     pub fn messages(&self, conversation_id: i64) -> Result<Vec<Message>> {
         let mut st = self.conn.prepare(
             "SELECT id, conversation_id, role, content, reasoning, prompt_tokens, completion_tokens,
-                    reasoning_tokens, error, created_at
+                    reasoning_tokens, error, created_at, first_token_ms, total_ms, retries
              FROM messages WHERE conversation_id = ?1 ORDER BY id",
         )?;
         let rows = st.query_map(params![conversation_id], |r| {
@@ -163,6 +187,9 @@ impl Store {
                 reasoning_tokens: r.get(7)?,
                 error: r.get(8)?,
                 created_at: r.get(9)?,
+                first_token_ms: r.get(10)?,
+                total_ms: r.get(11)?,
+                retries: r.get(12)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -198,8 +225,8 @@ impl Store {
         let t = now();
         self.conn.execute(
             "INSERT INTO messages (conversation_id, role, content, reasoning, prompt_tokens, completion_tokens,
-                                   reasoning_tokens, error, created_at)
-             VALUES (?1, 'assistant', ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                                   reasoning_tokens, error, created_at, first_token_ms, total_ms, retries)
+             VALUES (?1, 'assistant', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 conversation_id,
                 reply.content,
@@ -208,7 +235,10 @@ impl Store {
                 reply.completion_tokens,
                 reply.reasoning_tokens,
                 reply.error,
-                t
+                t,
+                reply.first_token_ms,
+                reply.total_ms,
+                reply.retries
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -284,12 +314,19 @@ mod tests {
                     content: "반가워요".into(),
                     reasoning: Some("인사".into()),
                     completion_tokens: Some(5),
+                    first_token_ms: Some(300),
+                    total_ms: Some(1200),
+                    retries: Some(1),
                     ..Default::default()
                 },
             )
             .unwrap();
         assert_eq!(a.role, "assistant");
         assert_eq!(a.reasoning.as_deref(), Some("인사"));
+        assert_eq!(
+            (a.first_token_ms, a.total_ms, a.retries),
+            (Some(300), Some(1200), Some(1))
+        );
         let msgs = s.messages(c.id).unwrap();
         assert_eq!(msgs.len(), 2);
         assert_eq!(msgs[0].content, "안녕");
@@ -309,6 +346,31 @@ mod tests {
             "메시지도 같이 지워진다"
         );
         assert!(s.conversation(c.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn migrates_old_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.db");
+        {
+            // 시간 열이 없던 예전 형식
+            let c = Connection::open(&path).unwrap();
+            c.execute_batch(
+                "CREATE TABLE conversations (id INTEGER PRIMARY KEY, title TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+                 CREATE TABLE messages (id INTEGER PRIMARY KEY, conversation_id INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL,
+                   reasoning TEXT, prompt_tokens INTEGER, completion_tokens INTEGER, reasoning_tokens INTEGER, error TEXT, created_at INTEGER NOT NULL);
+                 INSERT INTO conversations VALUES (1, '예전', 0, 0);
+                 INSERT INTO messages (conversation_id, role, content, created_at) VALUES (1, 'user', '옛 질문', 0);",
+            )
+            .unwrap();
+        }
+        let s = Store::open(&path).unwrap();
+        let msgs = s.messages(1).unwrap();
+        assert_eq!(msgs[0].content, "옛 질문");
+        assert_eq!(msgs[0].total_ms, None);
+        // 두 번 열어도 문제없다
+        drop(s);
+        Store::open(&path).unwrap();
     }
 
     #[test]

@@ -4,7 +4,11 @@ import DOMPurify from "dompurify";
 import { chatApi, Conversation, Effort, Message } from "./chatApi";
 
 const EFFORT_KEY = "exaone.chatEffort";
-const EFFORT_LABEL: Record<Effort, string> = { low: "빠르게", high: "보통", max: "깊게" };
+const EFFORT_LABEL: Record<Effort, string> = { low: "짧게", high: "보통", max: "최대" };
+const EFFORT_HELP =
+  "추론 강도: EXAONE이 답하기 전에 생각하는 양입니다. 실제로는 차이가 크지 않고(추론 수십 토큰, 1~2초), 응답 속도는 서버 혼잡에 더 크게 좌우됩니다.";
+
+const secs = (ms: number) => (ms < 10_000 ? (ms / 1000).toFixed(1) : Math.round(ms / 1000).toString());
 
 function loadEffort(): Effort {
   try {
@@ -23,6 +27,8 @@ function Markdown({ text }: { text: string }) {
 interface Live {
   reasoning: string;
   content: string;
+  startedAt: number;
+  retry: [number, number] | null;
 }
 
 export default function Chat({ visible, gatewayReady }: { visible: boolean; gatewayReady: boolean }) {
@@ -42,12 +48,14 @@ export default function Chat({ visible, gatewayReady }: { visible: boolean; gate
     chatApi.running().then((ids) => setRunning(new Set(ids)));
     const offDelta = chatApi.onDelta((d) =>
       setLive((prev) => {
-        const cur = prev[d.conversationId] ?? { reasoning: "", content: "" };
+        const cur = prev[d.conversationId] ?? { reasoning: "", content: "", startedAt: Date.now(), retry: null };
         return {
           ...prev,
           [d.conversationId]: {
+            ...cur,
             reasoning: cur.reasoning + (d.reasoning ?? ""),
             content: cur.content + (d.content ?? ""),
+            retry: d.retry ?? (d.reasoning || d.content ? null : cur.retry),
           },
         };
       }),
@@ -93,6 +101,7 @@ export default function Chat({ visible, gatewayReady }: { visible: boolean; gate
     }
     try {
       setRunning((prev) => new Set(prev).add(id!));
+      setLive((prev) => ({ ...prev, [id!]: { reasoning: "", content: "", startedAt: Date.now(), retry: null } }));
       const m = await chatApi.send(id, text, effort);
       setMessages((prev) => (activeRef.current === id ? [...prev, m] : prev));
       reloadList();
@@ -173,6 +182,26 @@ export default function Chat({ visible, gatewayReady }: { visible: boolean; gate
   );
 }
 
+function Waiting({ live }: { live?: Live }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const waited = live ? Math.floor((Date.now() - live.startedAt) / 1000) : 0;
+  return (
+    <div className="thinking">
+      응답을 기다리는 중… {waited > 0 && `${waited}초`}
+      {live?.retry && (
+        <span className="retry">
+          {" "}
+          · 서버가 붐벼 다시 시도 중 ({live.retry[0]}/{live.retry[1]})
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Thread({ messages, live, running }: { messages: Message[]; live?: Live; running: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -213,7 +242,7 @@ function Thread({ messages, live, running }: { messages: Message[]; live?: Live;
               <div className="reasoning-text">{live.reasoning}</div>
             </details>
           ) : (
-            !live?.content && <div className="thinking">응답을 기다리는 중…</div>
+            !live?.content && <Waiting live={live} />
           )}
           {live?.content && <Markdown text={live.content.replace(/^\s+/, "")} />}
         </div>
@@ -230,9 +259,13 @@ function Bubble({ m }: { m: Message }) {
       </div>
     );
   }
+  const gen = m.totalMs != null && m.firstTokenMs != null ? m.totalMs - m.firstTokenMs : null;
   const tokens = [
+    m.firstTokenMs != null && `대기 ${secs(m.firstTokenMs)}초`,
+    gen != null && `생성 ${secs(gen)}초`,
     m.completionTokens != null && `출력 ${m.completionTokens.toLocaleString()} 토큰`,
     m.reasoningTokens != null && `추론 ${m.reasoningTokens.toLocaleString()}`,
+    m.retries ? `재시도 ${m.retries}회` : null,
   ].filter(Boolean);
   return (
     <div className="msg assistant">
@@ -308,7 +341,9 @@ function Composer({
         }}
       />
       <div className="composer-bar">
-        <div className="seg small-seg" title="추론 강도: 깊게 할수록 느리지만 더 신중하게 답합니다">
+        <div className="effort" title={EFFORT_HELP}>
+        <span className="effort-label">추론</span>
+        <div className="seg small-seg">
           {(["low", "high", "max"] as Effort[]).map((v) => (
             <button
               key={v}
@@ -325,6 +360,7 @@ function Composer({
               {EFFORT_LABEL[v]}
             </button>
           ))}
+        </div>
         </div>
         {running ? (
           <button onClick={onStop}>멈추기</button>

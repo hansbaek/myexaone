@@ -35,6 +35,9 @@ fn main() -> anyhow::Result<()> {
         &AtomicBool::new(false),
         &mut |e| match e {
             ChatEvent::Reasoning(t) => reasoning.push_str(&t),
+            ChatEvent::Retrying { attempt, max } => {
+                eprintln!("(서버 혼잡, 다시 시도 {attempt}/{max})")
+            }
             ChatEvent::Content(t) => {
                 print!("{t}");
                 let _ = std::io::stdout().flush();
@@ -51,6 +54,7 @@ fn main() -> anyhow::Result<()> {
             completion_tokens: usage.completion_tokens,
             reasoning_tokens: usage.reasoning_tokens,
             error: None,
+            ..Default::default()
         },
     )?;
     println!(

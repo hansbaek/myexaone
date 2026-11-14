@@ -35,6 +35,8 @@ struct DeltaEvent {
     conversation_id: i64,
     reasoning: Option<String>,
     content: Option<String>,
+    /// 서버 혼잡으로 다시 시도 중이면 (몇 번째, 최대)
+    retry: Option<(u32, u32)>,
 }
 
 #[derive(Clone, Serialize)]
@@ -166,6 +168,9 @@ pub fn chat_send(
     std::thread::spawn(move || {
         let mut content = String::new();
         let mut reasoning = String::new();
+        let started = std::time::Instant::now();
+        let mut first_token: Option<i64> = None;
+        let mut retries = 0i64;
         let result = chat::stream(
             &settings.gateway_url(),
             &key,
@@ -173,30 +178,42 @@ pub fn chat_send(
             &effort,
             &flag,
             &mut |ev| {
-                let (r, c) = match ev {
+                let (r, c, retry) = match ev {
                     ChatEvent::Reasoning(t) => {
                         reasoning.push_str(&t);
-                        (Some(t), None)
+                        (Some(t), None, None)
                     }
                     ChatEvent::Content(t) => {
                         content.push_str(&t);
-                        (None, Some(t))
+                        (None, Some(t), None)
+                    }
+                    ChatEvent::Retrying { attempt, max } => {
+                        retries = i64::from(attempt);
+                        (None, None, Some((attempt, max)))
                     }
                 };
+                if retry.is_none() && first_token.is_none() {
+                    first_token = Some(started.elapsed().as_millis() as i64);
+                }
                 let _ = app.emit(
                     "chat-delta",
                     DeltaEvent {
                         conversation_id: id,
                         reasoning: r,
                         content: c,
+                        retry,
                     },
                 );
             },
         );
+        let total_ms = started.elapsed().as_millis() as i64;
         let stopped = flag.load(Ordering::Relaxed);
         let mut reply = AssistantReply {
             content: content.trim().to_string(),
             reasoning: Some(reasoning.trim().to_string()).filter(|s| !s.is_empty()),
+            first_token_ms: first_token,
+            total_ms: Some(total_ms),
+            retries: Some(retries).filter(|n| *n > 0),
             ..Default::default()
         };
         match result {

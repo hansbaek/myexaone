@@ -21,6 +21,9 @@ export interface Message {
   completionTokens: number | null;
   reasoningTokens: number | null;
   error: string | null;
+  firstTokenMs: number | null;
+  totalMs: number | null;
+  retries: number | null;
   createdAt: number;
 }
 
@@ -28,6 +31,8 @@ export interface Delta {
   conversationId: number;
   reasoning: string | null;
   content: string | null;
+  /** 서버 혼잡으로 다시 시도 중: [몇 번째, 최대] */
+  retry: [number, number] | null;
 }
 
 export interface Done {
@@ -51,12 +56,22 @@ const mock = {
 function mockReply(conversationId: number, question: string) {
   const reasoning = `사용자가 "${question}"라고 물었다. 간단히 답한다.`;
   const answer = `**미리보기 응답**입니다.\n\n- 질문: ${question}\n- 실제 앱에서는 EXAONE이 답합니다.\n\n\`\`\`python\nprint("안녕, EXAONE")\n\`\`\``;
+  const started = Date.now();
   const parts: Delta[] = [
-    ...reasoning.match(/.{1,6}/g)!.map((r) => ({ conversationId, reasoning: r, content: null })),
-    ...answer.match(/[\s\S]{1,5}/g)!.map((c) => ({ conversationId, reasoning: null, content: c })),
+    { conversationId, reasoning: null, content: null, retry: [1, 3] },
+    ...reasoning.match(/.{1,6}/g)!.map((r) => ({ conversationId, reasoning: r, content: null, retry: null })),
+    ...answer.match(/[\s\S]{1,5}/g)!.map((c) => ({ conversationId, reasoning: null, content: c, retry: null })),
   ];
   let i = 0;
-  const t = setInterval(() => {
+  const step = () => {
+    if (i === 0) {
+      // 첫 조각(재시도 알림) 다음에는 서버 대기를 흉내 내느라 잠깐 쉰다.
+      mock.deltaFns.forEach((f) => f(parts[0]));
+      i = 1;
+      clearInterval(t);
+      setTimeout(() => mockReply2(), 1200);
+      return;
+    }
     if (!mock.running.has(conversationId) || i >= parts.length) {
       clearInterval(t);
       const msg: Message = {
@@ -69,6 +84,9 @@ function mockReply(conversationId: number, question: string) {
         completionTokens: 60,
         reasoningTokens: 15,
         error: i >= parts.length ? null : "중간에 멈췄습니다",
+        firstTokenMs: 1200,
+        totalMs: Date.now() - started,
+        retries: 1,
         createdAt: Date.now(),
       };
       mock.msgs.push(msg);
@@ -81,7 +99,9 @@ function mockReply(conversationId: number, question: string) {
     }
     mock.deltaFns.forEach((f) => f(parts[i]));
     i++;
-  }, 25);
+  };
+  let t = setInterval(step, 25);
+  const mockReply2 = () => (t = setInterval(step, 25));
 }
 
 async function mockInvoke(cmd: string, a: Record<string, unknown> = {}): Promise<unknown> {
@@ -119,6 +139,9 @@ async function mockInvoke(cmd: string, a: Record<string, unknown> = {}): Promise
         completionTokens: null,
         reasoningTokens: null,
         error: null,
+        firstTokenMs: null,
+        totalMs: null,
+        retries: null,
         createdAt: Date.now(),
       };
       mock.msgs.push(m);
